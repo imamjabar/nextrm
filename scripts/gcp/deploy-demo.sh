@@ -8,6 +8,8 @@
 #   --db-setup          force the migrate + seed job (otherwise it runs only when migrations, models or seed inputs changed)
 #   --remote-web-build  compile the web app inside Cloud Build instead of locally (slower; the local build output is
 #                       otherwise packaged by Cloud Build into the same Node image)
+# API_MIN_INSTANCES (default 0) keeps that many API instances warm. At 0 the API scales to zero when idle, so the first
+# request after about 15 idle minutes waits for a container start; 1 keeps one instance billed around the clock.
 # Production (Firebase identity, demo disabled) uses scripts/gcp/deploy.sh instead.
 set -euo pipefail
 : "${GCP_PROJECT_ID:?Set the authorized project ID}"
@@ -101,7 +103,7 @@ deploy_api() {
       --set-env-vars="ENVIRONMENT=development,NEXTRM_SEED_CUSTOMER_ACTIVITY=true" \
       --command=/app/scripts/gcp/db-setup.sh --tasks=1 --max-retries=0 --task-timeout=600 --execute-now --wait
   fi
-  env="ENVIRONMENT=development,DEBUG=false,AUTH_PROVIDER=synthetic_demo,NEXTRM_SEED_CUSTOMER_ACTIVITY=true,NEXTRM_WORKER_HEALTH_FILE=/tmp/worker-health.json,DB_POOL_SIZE=10,DB_MAX_OVERFLOW=10,NEXTRM_AI_PROVIDER=vertex,GOOGLE_CLOUD_PROJECT=${P},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION},GEMINI_MODEL=${GEMINI_MODEL}"
+  env="ENVIRONMENT=development,DEBUG=false,AUTH_PROVIDER=synthetic_demo,NEXTRM_SEED_CUSTOMER_ACTIVITY=true,NEXTRM_WORKER_HEALTH_FILE=/tmp/worker-health.json,NEXTRM_AI_PROVIDER=vertex,GOOGLE_CLOUD_PROJECT=${P},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION},GEMINI_MODEL=${GEMINI_MODEL}"
   if [[ -n "${GEMINI_THINKING_LEVEL:-}" ]]; then env="${env},GEMINI_THINKING_LEVEL=${GEMINI_THINKING_LEVEL}"; fi
   if [[ -n "${GEMINI_THINKING_BUDGET:-}" ]]; then env="${env},GEMINI_THINKING_BUDGET=${GEMINI_THINKING_BUDGET}"; fi
   if [[ -n "$MAPS_SERVER_KEY_SECRET" ]]; then
@@ -113,7 +115,7 @@ deploy_api() {
     --service-account="$API_SA" --no-allow-unauthenticated --ingress=all \
     --command=/app/scripts/gcp/demo-api-entrypoint.sh --set-cloudsql-instances="$CONNECTION" \
     --set-env-vars="$env" --set-secrets="$secrets" --port=8000 --cpu=1 --memory=1Gi --cpu-boost \
-    --min-instances=1 --max-instances=3 --no-cpu-throttling --concurrency=20 --timeout=60 --update-labels="nextrm_db=${DB_TAG}" --quiet
+    --min-instances="${API_MIN_INSTANCES:-0}" --max-instances=3 --no-cpu-throttling --concurrency=20 --timeout=60 --update-labels="nextrm_db=${DB_TAG}" --quiet
   if [[ "$SETUP_RAN" == 1 ]]; then
     gcloud run services add-iam-policy-binding nextrm-api --project="$P" --region="$R" --member="serviceAccount:${WEB_SA}" --role=roles/run.invoker --quiet >/dev/null
   fi

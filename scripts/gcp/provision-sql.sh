@@ -6,7 +6,7 @@ set -euo pipefail
 : "${GCP_REGION:?Set the region, e.g. asia-southeast1}"
 P="$GCP_PROJECT_ID"; R="$GCP_REGION"
 INSTANCE="${CLOUDSQL_INSTANCE:-nextrm-pg}"
-TIER="${CLOUDSQL_TIER:-db-custom-1-3840}"
+TIER="${CLOUDSQL_TIER:-db-g1-small}"
 VERSION="${CLOUDSQL_VERSION:-POSTGRES_17}"
 DB_NAME="${CLOUDSQL_DATABASE:-nextrm}"
 DB_USER="${CLOUDSQL_USER:-nextrm_app}"
