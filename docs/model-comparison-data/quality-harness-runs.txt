@@ -1,0 +1,651 @@
+Ten-question harness output (scripts/top10_questions.py --live), 18 Oct 2026. Warning lines that contained local paths were removed.
+The first three-run sets (stems below) ran nine processes in parallel, so their latencies are inflated and only their pass/fail is used.
+Raw console output for the capture run and the three error-capture runs was not saved; their counts come from the console.
+
+
+===== 3.5 Flash, asia-southeast1, thinking low, run 1 (base-regional.log)
+Mode: live Gemini
+PASS  Q1  LIVE  13973 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  13716 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+FAIL  Q3  LIVE  6790 ms  route=PENDING  How do I start building wealth or investing with limited money?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 8,000,000
+PASS  Q4  LIVE  6644 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  8578 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  11257 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  8118 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  11266 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  9197 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  21784 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [3]
+
+===== 3.5 Flash, asia-southeast1, thinking low, run 2 (base-regional-r2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  12196 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  8872 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  12875 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  9360 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  8482 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  8120 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  9338 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  10746 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  8590 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  8273 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, asia-southeast1, thinking low, run 3 (base-regional-r3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  5863 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  7043 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  7528 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+FAIL  Q4  LIVE  7106 ms  route=PENDING  Am I on track for my goals like school fees and an emergency fund?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 2,732,142.86
+PASS  Q5  LIVE  16569 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  7153 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  6255 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  8150 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  6302 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  7333 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [4]
+
+===== 3.5 Flash, global, thinking low, run 1 (base-global.log)
+Mode: live Gemini
+PASS  Q1  LIVE  14038 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  11492 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  11172 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  7716 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  9045 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  11101 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  11302 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  13795 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  20701 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  9664 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, global, thinking low, run 2 (base-global-r2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  12486 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  10200 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  13934 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  8816 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  5112 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  8679 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  9283 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+FAIL  Q8  LIVE  3919 ms  route=PENDING  What product or action should I take next to improve my finances?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Google response was unavailable, timed out or failed validation (ClientError); no simulated fallback used.
+PASS  Q9  LIVE  8866 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  6768 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [8]
+
+===== 3.5 Flash, global, thinking low, run 3 (base-global-r3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  10957 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  7369 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  8231 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+FAIL  Q4  LIVE  5720 ms  route=PENDING  Am I on track for my goals like school fees and an emergency fund?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 357,142.86
+PASS  Q5  LIVE  6519 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  11927 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  6922 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  9939 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  5770 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  6561 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [4]
+
+===== 3.5 Flash-Lite, global, thinking low, run 1 (g35lite-global.log)
+Mode: live Gemini
+PASS  Q1  LIVE  9039 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  3517 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  8814 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  4074 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  4385 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  4028 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  4538 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  7826 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  5877 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+FAIL  Q10  LIVE  4587 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+      Your equity fund fell amid broader market moves, which is common for equity holdings. A personal decision about selling or holding needs the bank's suitability review with an advisor, and I cannot tell you whether to sell because that is a personal recommendation. You might consider talking to your relationship manager about your portfolio.
+      
+      What is the time horizon for this money?
+      suggestions: ['Talk to my RM about my portfolio', 'Show my holdings overview']
+      ! missing /6\.10%/
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [10]
+
+===== 3.5 Flash-Lite, global, thinking low, run 2 (g35lite-global-r2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  9401 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  4547 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  9078 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5892 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  4042 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+FAIL  Q6  LIVE  4763 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+      Paying down your credit card balance of IDR 4,200,000 removes a certain monthly interest cost of IDR 84,000, which compares to earning about IDR 8,750 in savings at 2.50%. After repayment, you would still keep a cash buffer of 1.49 months of spending. Saving more can help close the IDR 3,000,000 shortfall for your school expenses goal, while investing remains an uncertain step where returns are never guaranteed. Would you like to review your goal progress next?
+      suggestions: ['Show my goal progress', 'Talk to my RM about my portfolio']
+      ! missing /suitab|advisor|relationship manager|\bRM\b/
+PASS  Q7  LIVE  4082 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  4062 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  3839 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3941 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [6]
+
+===== 3.5 Flash-Lite, global, thinking low, run 3 (g35lite-global-r3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  8511 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  6979 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  5733 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5403 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  6480 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  6753 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  8281 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  3705 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  3256 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3601 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.1 Flash-Lite, global, thinking low, run 1 (g31lite-global.log)
+Mode: live Gemini
+PASS  Q1  LIVE  10674 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  4558 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  8250 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  4157 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  6862 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  5190 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  7996 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  6533 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  4619 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  4865 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.1 Flash-Lite, global, thinking low, run 2 (g31lite-global-r2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  8588 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  4245 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  5620 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5941 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  5290 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  5167 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  4747 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  4330 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  4432 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  4162 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.1 Flash-Lite, global, thinking low, run 3 (g31lite-global-r3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  9144 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  6559 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  5656 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5806 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  6977 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  5844 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  4073 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  4822 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  4207 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3970 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.6 Flash, global, thinking low, run 1 (g36-global.log)
+Mode: live Gemini
+PASS  Q1  LIVE  11381 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  5584 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  8856 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  4477 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  5004 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  9581 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  6563 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  5307 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  6135 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  8605 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.6 Flash, global, thinking low, run 2 (g36-global-r2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  13907 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  5764 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  6516 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+FAIL  Q4  LIVE  5090 ms  route=PENDING  Am I on track for my goals like school fees and an emergency fund?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 931,666.67
+PASS  Q5  LIVE  9781 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  5613 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  6094 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  4894 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  7670 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  10643 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [4]
+
+===== 3.6 Flash, global, thinking low, run 3 (g36-global-r3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  11945 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  6554 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  5335 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+FAIL  Q4  LIVE  4447 ms  route=PENDING  Am I on track for my goals like school fees and an emergency fund?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 357,142.86
+PASS  Q5  LIVE  7917 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  7270 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  4181 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  8275 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  5966 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  7977 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [4]
+
+===== 3.7 Flash, global, thinking low, run 1 (g37-global.log)
+Mode: live Gemini
+PASS  Q1  LIVE  15154 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  9967 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  6451 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  10785 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  10349 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  7384 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  7990 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+FAIL  Q8  LIVE  26822 ms  route=PENDING  What product or action should I take next to improve my finances?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Google response was unavailable, timed out or failed validation (ServerError); no simulated fallback used.
+FAIL  Q9  LIVE  26055 ms  route=PENDING  How is my overall financial health and net worth trending?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Google response was unavailable, timed out or failed validation (ServerError); no simulated fallback used.
+FAIL  Q10  LIVE  20129 ms  route=PENDING  Why did my investments drop, is this normal, and should I sell?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Google response was unavailable, timed out or failed validation (ServerError); no simulated fallback used.
+FAIL  RM handoff  LIVE  no signal reached the RM
+Failed: [8, 9, 10, 'handoff']
+
+===== 3.7 Flash, global, thinking low, run 2 (g37-global-r2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  11321 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+FAIL  Q2  LIVE  21697 ms  route=PENDING  How much can I safely spend or save this month without running short?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Google response was unavailable, timed out or failed validation (ServerError); no simulated fallback used.
+PASS  Q3  LIVE  7655 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  6114 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  7075 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  7656 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  8032 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  10023 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  9156 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  9835 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [2]
+
+===== 3.7 Flash, global, thinking low, run 3 (g37-global-r3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  9700 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  7208 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  6301 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  7095 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  10637 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  7083 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  6451 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  7625 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  5812 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  5713 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.8 Flash, global, thinking low, run 1 (g38-global.log)
+Mode: live Gemini
+FAIL  Q1  LIVE  26821 ms  route=PENDING  Where is my money going and how can I stop overspending?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Google response was unavailable, timed out or failed validation (ServerError); no simulated fallback used.
+PASS  Q2  LIVE  6626 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  6743 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  8813 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  8027 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+FAIL  Q6  LIVE  6543 ms  route=PENDING  Should I pay down my credit card, save more, or invest extra cash?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response attempted an unavailable binding action or unsupported assessment.
+PASS  Q7  LIVE  7511 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  12309 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  8815 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  15120 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [1, 6]
+
+===== 3.8 Flash, global, thinking low, run 2 (g38-global-r2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  11922 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+FAIL  Q2  LIVE  8412 ms  route=PENDING  How much can I safely spend or save this month without running short?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 931,666.67
+PASS  Q3  LIVE  8327 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  6469 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  15047 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  6973 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  5120 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  7415 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  9028 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  8000 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [2]
+
+===== 3.8 Flash, global, thinking low, run 3 (g38-global-r3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  11630 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  5591 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  6758 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5452 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  6138 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  8612 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  5632 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  5939 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  6459 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  6827 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 2.5 Flash, asia-southeast1, thinking budget 1024 (one run), run 1 (g25flash-regional.log)
+Mode: live Gemini
+PASS  Q1  LIVE  13681 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  8645 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  7941 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+FAIL  Q4  LIVE  6515 ms  route=PENDING  Am I on track for my goals like school fees and an emergency fund?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 357,142.86
+FAIL  Q5  LIVE  12402 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+      Dina, your investment portfolio has an overall loss of IDR 101,000 (-0.96%) against its cost, and it decreased by IDR 215,000 (-2.03%) over the last 30 days. This is mainly due to your Reksa Dana Indeks IDX30 (Equity) holding, which is down 5.00% from its cost and fell 6.10% in the last 30 days. This kind of movement is common for equity funds, especially given that Indonesian equities fell 3.4% over five trading days around 16 Oct 2026. I cannot tell you what to do next as that is a personal recommendation. However, you could consider your cash buffer of 2.24 months of spending, your credit card debt of IDR 4,200,000, and your "Dana Pendidikan Anak" goal, which needs an extra IDR 375,000 monthly. A personal recommendation needs a suitability review with an advisor.
+      
+      What is the time horizon for this money?
+      suggestions: ['Talk to my RM about my portfolio', 'Show me my investment goals', 'What is a suitability review?']
+      ! missing /IDR 10,399,000/
+PASS  Q6  LIVE  9850 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+FAIL  Q7  LIVE  5831 ms  route=PENDING  Are there subscriptions or recurring costs I can cut?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 375,000
+PASS  Q8  LIVE  12826 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  8933 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+FAIL  Q10  LIVE  23580 ms  route=PENDING  Why did my investments drop, is this normal, and should I sell?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported percentage: 3.4%
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [4, 5, 7, 10]
+
+===== 2.5 Flash-Lite, global, thinking budget 1024 (one run), run 1 (g25lite-global.log)
+Mode: live Gemini
+FAIL  Q1  LIVE  12693 ms  route=PENDING  Where is my money going and how can I stop overspending?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Model referenced an unauthorized or nonexistent source.
+PASS  Q2  LIVE  9129 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+FAIL  Q3  LIVE  7133 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+      To start building wealth with limited money, it's generally advised to first ensure you have a solid cash buffer and have managed any high-interest debt. Your credit card balance of IDR 4,200,000 incurs significant monthly interest costs of IDR 84,000, which is more than you'd earn on savings. Your goals, like 'Dana Pendidikan Anak' and 'Dana Darurat', are currently behind their planned progress.
+      
+      What is the time horizon for this money?
+      suggestions: ['Increase my goal savings', 'Talk to my RM about my portfolio']
+      ! missing /suitab|advisor|relationship manager|\bRM\b/
+FAIL  Q4  LIVE  7118 ms  route=PENDING  Am I on track for my goals like school fees and an emergency fund?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 357,142.86
+PASS  Q5  LIVE  7983 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+FAIL  Q6  LIVE  9318 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+      Paying down your credit card debt offers a guaranteed saving of IDR 84,000 per month in interest, which is significantly more than you would earn in savings (IDR 8,750 on IDR 4,200,000 at 2.50%). Investing carries potential for higher returns but also risk, and your goals are currently behind schedule. Your available funds for this month are IDR 10,643,888.89.
+      
+      What is the time horizon for this money?
+      suggestions: ['Save for my goals', 'Explore investment options']
+      ! missing /certain|uncertain|months/
+      ! missing /suitab|advisor|relationship manager|\bRM\b/
+FAIL  Q7  LIVE  6704 ms  route=PENDING  Are there subscriptions or recurring costs I can cut?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 683,333.33
+FAIL  Q8  LIVE  7579 ms  route=PENDING  What product or action should I take next to improve my finances?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Model referenced an unauthorized or nonexistent source.
+PASS  Q9  LIVE  10680 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+FAIL  Q10  LIVE  10053 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+      Your investment portfolio is valued at IDR 10,399,000, which is IDR 101,000 less than its cost. The 'Reksa Dana Indeks IDX30' equity fund has seen a decline of 6.10% over the last 30 days. Declines of this size are common for equity funds, especially when market conditions are volatile, as noted on 16 Oct 2026 when Indonesian equities fell 3.4%.
+      
+      What is the time horizon for this money?
+      suggestions: ['Talk to my RM about my portfolio', 'Show my goal progress', 'What is my credit card debt?']
+      ! missing /suitab|advisor|relationship manager|\bRM\b/
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [1, 3, 4, 6, 7, 8, 10]
+
+===== 3.5 Flash, asia-southeast1, thinking low, sequential, run 1 (low_1.log)
+Mode: live Gemini
+PASS  Q1  LIVE  10888 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  8963 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  9051 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5774 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  9349 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  10131 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  8500 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  9389 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  5011 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3022 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, asia-southeast1, thinking low, sequential, run 2 (low_2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  9435 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  5849 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  6107 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5494 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  5692 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  8775 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  6018 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  8211 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  4874 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  5994 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, asia-southeast1, thinking low, sequential, run 3 (low_3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  6994 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  5856 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  5354 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  6187 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  9335 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  8231 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  5686 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  13344 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  7579 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  7186 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, asia-southeast1, thinking low, sequential, run 4 (low_4.log)
+Mode: live Gemini
+PASS  Q1  LIVE  6853 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  9459 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  9818 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  5251 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  4925 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  8126 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  5201 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  8040 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  6589 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  4553 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, asia-southeast1, thinking low, sequential, run 5 (low_5.log)
+Mode: live Gemini
+PASS  Q1  LIVE  6453 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  5243 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  5730 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  7082 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  5807 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  7284 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  4766 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  5168 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  6495 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  5164 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, asia-southeast1, thinking minimal, sequential, run 1 (min_1.log)
+Mode: live Gemini
+PASS  Q1  LIVE  4824 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+FAIL  Q2  LIVE  3315 ms  route=PENDING  How much can I safely spend or save this month without running short?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 357,142.86
+PASS  Q3  LIVE  3265 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  3817 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  6128 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+FAIL  Q6  LIVE  8663 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+      Paying down your credit card is generally the most certain financial move because it eliminates a high interest cost, whereas investing returns are always uncertain. 
+      
+      Your credit card balance of IDR 4,200,000 costs you 24.00% in annual interest, which is a guaranteed cost. In contrast, your savings account earns 2.50% interest. You currently have a cash buffer of 2.24 months of spending in savings, and your school expenses goal, Dana Pendidikan Anak, is behind by IDR 3,000,000.
+      
+      To help you decide, consider these options:
+      - Pay off your credit card balance in full from your IDR 12,500,000 savings, which leaves you with a cash buffer of 1.49 months of spending.
+      - Increase your monthly savings to close the IDR 3,000,000 shortfall for your school expenses goal.
+      
+      Would you like to discuss your investment goals with your relationship manager?
+      suggestions: ['Talk to my RM about my portfolio', 'How can I adjust my school expenses goal?', 'Show my credit card payment options']
+      ! missing /IDR 84,000/
+PASS  Q7  LIVE  3354 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  3457 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  6153 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3227 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [2, 6]
+
+===== 3.5 Flash, asia-southeast1, thinking minimal, sequential, run 2 (min_2.log)
+Mode: live Gemini
+PASS  Q1  LIVE  5086 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  3584 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  4377 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  4024 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  5094 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+FAIL  Q6  LIVE  6505 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+      When deciding how to allocate your cash, it is helpful to compare the certain cost of your debt against what your savings earn, while keeping an eye on your cash buffer and goals. I cannot tell you whether to pay down your card, save, or invest because that is a personal recommendation.
+      
+      To help you weigh your options:
+      - Debt Cost: Your credit card balance of IDR 4,200,000 has a certain interest cost of 24.00% per year, whereas the same amount in savings earns 2.50%.
+      - Cash Buffer: Your savings account holds IDR 12,500,000, which covers 2.24 months of typical spending.
+      - Goal Gaps: Your active goals are behind schedule, with a shortfall of IDR 3,000,000 for Dana Pendidikan Anak.
+      
+      Investing is the uncertain last step. A personal recommendation requires the bank's suitability review with an advisor. We can involve your relationship manager to help you review this.
+      
+      What is the time horizon for this money?
+      suggestions: ['Talk to my RM about my portfolio', 'How can I close my goal shortfalls?', 'Show my credit card repayment options']
+      ! missing /IDR 84,000/
+FAIL  Q7  LIVE  3508 ms  route=PENDING  Are there subscriptions or recurring costs I can cut?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 2,380,000
+PASS  Q8  LIVE  3544 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  4477 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3326 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [6, 7]
+
+===== 3.5 Flash, asia-southeast1, thinking minimal, sequential, run 3 (min_3.log)
+Mode: live Gemini
+PASS  Q1  LIVE  4817 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  3291 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+FAIL  Q3  LIVE  3499 ms  route=PENDING  How do I start building wealth or investing with limited money?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response attempted an unavailable binding action or unsupported assessment.
+PASS  Q4  LIVE  4443 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  4487 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  4958 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  3773 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  3388 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  3894 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3035 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [3]
+
+===== 3.5 Flash, asia-southeast1, thinking minimal, sequential, run 4 (min_4.log)
+Mode: live Gemini
+PASS  Q1  LIVE  6037 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  3378 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  4450 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+PASS  Q4  LIVE  7324 ms  route=SAVINGS  Am I on track for my goals like school fees and an emergency fund?
+PASS  Q5  LIVE  8963 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  4645 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+PASS  Q7  LIVE  3470 ms  route=SAVINGS  Are there subscriptions or recurring costs I can cut?
+PASS  Q8  LIVE  7811 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  6607 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  4162 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+All questions passed.
+
+===== 3.5 Flash, asia-southeast1, thinking minimal, sequential, run 5 (min_5.log)
+Mode: live Gemini
+PASS  Q1  LIVE  4790 ms  route=SAVINGS  Where is my money going and how can I stop overspending?
+PASS  Q2  LIVE  3309 ms  route=SAVINGS  How much can I safely spend or save this month without running short?
+PASS  Q3  LIVE  3981 ms  route=WEALTH  How do I start building wealth or investing with limited money?
+FAIL  Q4  LIVE  4197 ms  route=PENDING  Am I on track for my goals like school fees and an emergency fund?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 357,142.86
+PASS  Q5  LIVE  5521 ms  route=WEALTH  Is my portfolio performing well and what should I do next?
+PASS  Q6  LIVE  3483 ms  route=WEALTH  Should I pay down my credit card, save more, or invest extra cash?
+FAIL  Q7  LIVE  4179 ms  route=PENDING  Are there subscriptions or recurring costs I can cut?
+      I could not answer that reliably. You can rephrase, or ask for your RM through the official channel.
+      suggestions: []
+      ! turn 200 FAILED
+      ! reason: Response contained an unsupported numerical claim. Unsupported number: 2,380,000
+PASS  Q8  LIVE  3684 ms  route=SAVINGS  What product or action should I take next to improve my finances?
+PASS  Q9  LIVE  3106 ms  route=SAVINGS  How is my overall financial health and net worth trending?
+PASS  Q10  LIVE  3696 ms  route=WEALTH  Why did my investments drop, is this normal, and should I sell?
+PASS  RM handoff  LIVE  GUIDANCE signal visible to the RM
+Failed: [4, 7]
