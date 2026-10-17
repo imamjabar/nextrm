@@ -80,11 +80,11 @@ def test_default_policy_examples_all_resolve_to_their_declared_route():
     ('Where is my money going and how can I stop overspending?', ['IDR 6,035,000', 'Groceries', '27.78%']),
     ('How much can I safely spend this month?', ['IDR 10,643,888.89', '25 Oct 2026']),
     ('Am I on track for my goals?', ['IDR 1,875,000', 'IDR 375,000', 'Dana Pendidikan Anak']),
-    ('Is my portfolio performing well and what should I do next?', ['IDR 10,399,000', '-0.96%']),
+    ('Is my portfolio performing well and what should I do next?', ['IDR 15,524,000', '0.15%']),
     ('Should I pay down my credit card or invest extra cash?', ['IDR 84,000', 'IDR 8,750', '26 months']),
     ('Are there subscriptions or recurring costs I can cut?', ['Spotify AB', 'Restoran Padang Sederhana']),
     ('What product or action should I take next to improve my finances?', ['Pay off your credit card balance']),
-    ('How is my overall financial health and net worth trending?', ['IDR 18,699,000', '34.49%']),
+    ('How is my overall financial health and net worth trending?', ['IDR 23,824,000', '34.49%']),
     ('Why did my investments drop and should I sell?', ['down 6.10%', '3.4%']),
 ])
 def test_simulated_engine_answers_from_validated_figures_and_never_advises(question, facts):
@@ -127,7 +127,7 @@ def failure_reason(turn):
 
 
 def test_live_answer_may_describe_a_loss_without_repeating_the_minus_sign(monkeypatch):
-    with_live_model(monkeypatch, "Your index fund is down 6.10% over 30 days, a loss of IDR 215,000 for the whole portfolio. A personal recommendation needs the bank's suitability review with an advisor.")
+    with_live_model(monkeypatch, "Your index fund is down 6.10% over 30 days, a loss of IDR 275,000 for the whole portfolio. A personal recommendation needs the bank's suitability review with an advisor.")
     turn = ask('Why did my investments drop?')
     assert turn['status'] == 'COMPLETED' and turn['mode'] == 'LIVE'
 
@@ -164,7 +164,7 @@ def test_live_answers_that_advise_predict_or_invent_numbers_fail_closed(monkeypa
 
 def test_live_model_only_receives_the_cards_that_serve_the_question(monkeypatch):
     seen = []
-    with_live_model(monkeypatch, "Your portfolio is worth IDR 10,399,000. A personal recommendation needs the bank's suitability review with an advisor.", capture=seen)
+    with_live_model(monkeypatch, "Your portfolio is worth IDR 15,524,000. A personal recommendation needs the bank's suitability review with an advisor.", capture=seen)
     ask('Why did my investments drop?')
     portfolio_keys = {c['key'] for c in seen[0]['permitted_context']['financial_context']}
     assert {'portfolio', 'goal_progress', 'safe_to_spend'} <= portfolio_keys and not portfolio_keys & {'debt', 'next_actions', 'net_worth', 'recurring'}

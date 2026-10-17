@@ -81,19 +81,20 @@ def test_portfolio_keeps_the_sign_of_losses_and_allocation_adds_up():
     with SessionLocal() as db:
         portfolio = cards(db)['portfolio']
     v = portfolio['values']
-    assert (v['total_value'], v['gain_loss'], v['gain_loss_percent'], v['change_30d_percent']) == ('10399000.00', '-101000.00', '-0.96', '-2.03')
+    assert (v['total_value'], v['gain_loss'], v['gain_loss_percent'], v['change_30d_percent']) == ('15524000.00', '24000.00', '0.15', '-1.74')
     assert (v['weakest_holding'], v['weakest_change_30d_percent']) == ('Reksa Dana Indeks IDX30', '-6.10')
     assert abs(sum(Decimal(v[k]) for k in ('equity_percent', 'bond_percent', 'money_market_percent')) - 100) <= Decimal('0.02')
     shown = display_values(portfolio)
-    assert shown['gain_loss_percent'] == '-0.96%' and shown['total_value'] == 'IDR 10,399,000' and shown['as_of'] == '17 Oct 2026'
+    assert shown['gain_loss_percent'] == '0.15%' and shown['total_value'] == 'IDR 15,524,000' and shown['as_of'] == '17 Oct 2026'
     assert next(r for r in portfolio['rows'] if r['label'] == 'Reksa Dana Indeks IDX30')['gain_loss'] == 'IDR -175,000'
+    assert next(r for r in portfolio['rows'] if 'BBCA' in r['label'])['holding_since'] == '15 Jun 2026'
 
 
 def test_net_worth_subtracts_liabilities_and_omits_unknown_history():
     with SessionLocal() as db:
         worth = cards(db)['net_worth']['values']
-        assert (worth['assets_total'], worth['liabilities_total'], worth['net_worth']) == ('22899000.00', '4200000.00', '18699000.00')
-        assert worth['assets_change_30d'] == '2250000.00'
+        assert (worth['assets_total'], worth['liabilities_total'], worth['net_worth']) == ('28024000.00', '4200000.00', '23824000.00')
+        assert worth['assets_change_30d'] == '2190000.00'
         db.query(BankHolding).filter_by(instrument='Reksa Dana Indeks IDX30').update({'value_30d_ago': None})
         db.commit()
         assert 'assets_change_30d' not in cards(db)['net_worth']['values']

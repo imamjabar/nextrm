@@ -6,8 +6,10 @@ from app.services.market_feed import (
     fetch_market_snapshot,
     format_market_note,
     sync_market_note_to_db,
+    get_market_ticks,
+    get_tick_quote,
+    is_market_note_valid,
 )
-
 
 def test_market_open_and_close_session_notes_contain_targeted_guidance():
     # Test Market Open session
@@ -20,7 +22,7 @@ def test_market_open_and_close_session_notes_contain_targeted_guidance():
     assert 'Indonesian equities (IHSG)' in open_note
     assert 'cautious open' in open_note
     assert 'suitability review with an advisor' in open_note
-
+    assert 'BBCA IDR 10250.00' in open_note
     # Test Market Close session
     close_snap = fetch_market_snapshot(session='close')
     assert close_snap['session'] == 'CLOSE'
@@ -38,6 +40,26 @@ def test_determine_session_by_time():
     afternoon = datetime(2026, 10, 18, 16, 15, tzinfo=WIB)
     assert determine_session(morning) == 'OPEN'
     assert determine_session(afternoon) == 'CLOSE'
+def test_market_ticks_and_quote_lookup():
+    ticks = get_market_ticks()
+    symbols = {t['symbol'] for t in ticks}
+    assert {'IHSG', 'IDX30', 'BBCA', 'BBRI', 'BMRI', 'TLKM'} <= symbols
+
+    bbca = get_tick_quote('bbca')
+    assert bbca is not None
+    assert bbca['symbol'] == 'BBCA'
+    assert bbca['price'] == '10250.00'
+    assert bbca['change_percent'] == '-1.20%'
+
+
+def test_is_market_note_valid_timing_and_expiry():
+    now = datetime(2026, 10, 18, 10, 0, tzinfo=timezone.utc)
+    # Valid note
+    assert is_market_note_valid('2026-10-18T09:00:00Z', valid_until_iso='2026-10-18T16:00:00Z', now=now)
+    # Expired note: valid_until in past
+    assert not is_market_note_valid('2026-10-17T09:00:00Z', valid_until_iso='2026-10-17T16:00:00Z', now=now)
+    # Expired note: older than 24h without valid_until
+    assert not is_market_note_valid('2026-10-16T09:00:00Z', now=now)
 
 def test_sync_market_note_to_db_upserts_and_bumps_version():
     with SessionLocal() as db:

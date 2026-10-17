@@ -340,11 +340,12 @@ def _seed_planning(db: Session, tenant_id: str, planning: dict, cust_map: dict) 
         for number, row in enumerate(rows if customer else [], start=1):
             holding_id = f"bhold-{customer.id}-{number}"
             if not db.get(BankHolding, holding_id):
+                holding_as_of = datetime.fromisoformat(row["as_of"]) if row.get("as_of") else as_of
                 db.add(BankHolding(
                     id=holding_id, tenant_id=tenant_id, customer_id=customer.id, instrument=row["instrument"],
                     asset_class=row["asset_class"], cost_basis=_dec(row["cost_basis"]), market_value=_dec(row["market_value"]),
                     value_30d_ago=_dec(row["value_30d_ago"]) if row.get("value_30d_ago") else None,
-                    as_of=as_of, mode="SYNTHETIC",
+                    as_of=holding_as_of, mode="SYNTHETIC",
                 ))
     db.flush()
 

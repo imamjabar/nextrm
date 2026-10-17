@@ -22,18 +22,19 @@
   },
   "holdings": {
     "DINA": [
-      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "4000000.00", "market_value": "4056000.00", "value_30d_ago": "4043000.00"},
-      {"instrument": "Reksa Dana Pendapatan Tetap Garuda", "asset_class": "BOND", "cost_basis": "3000000.00", "market_value": "3018000.00", "value_30d_ago": "3030000.00"},
-      {"instrument": "Reksa Dana Indeks IDX30", "asset_class": "EQUITY", "cost_basis": "3500000.00", "market_value": "3325000.00", "value_30d_ago": "3541000.00"}
+      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "4000000.00", "market_value": "4056000.00", "value_30d_ago": "4043000.00", "as_of": "2026-10-17T10:00:00"},
+      {"instrument": "Reksa Dana Pendapatan Tetap Garuda", "asset_class": "BOND", "cost_basis": "3000000.00", "market_value": "3018000.00", "value_30d_ago": "3030000.00", "as_of": "2026-10-17T10:00:00"},
+      {"instrument": "Reksa Dana Indeks IDX30", "asset_class": "EQUITY", "cost_basis": "3500000.00", "market_value": "3325000.00", "value_30d_ago": "3541000.00", "as_of": "2026-10-17T10:00:00"},
+      {"instrument": "PT Bank Central Asia Tbk (BBCA)", "asset_class": "EQUITY", "cost_basis": "5000000.00", "market_value": "5125000.00", "value_30d_ago": "5185000.00", "as_of": "2026-06-15T09:00:00"}
     ],
     "NABILA": [
-      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "2000000.00", "market_value": "2018000.00", "value_30d_ago": "2011000.00"}
+      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "2000000.00", "market_value": "2018000.00", "value_30d_ago": "2011000.00", "as_of": "2026-06-15T09:00:00"}
     ],
     "ADITYA": [
-      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "150000000.00", "market_value": "152400000.00", "value_30d_ago": "151900000.00"},
-      {"instrument": "Reksa Dana Pendapatan Tetap Garuda", "asset_class": "BOND", "cost_basis": "200000000.00", "market_value": "198500000.00", "value_30d_ago": "201300000.00"},
-      {"instrument": "Reksa Dana Saham Prima Indonesia", "asset_class": "EQUITY", "cost_basis": "250000000.00", "market_value": "241000000.00", "value_30d_ago": "259500000.00"},
-      {"instrument": "Reksa Dana Indeks IDX30", "asset_class": "EQUITY", "cost_basis": "100000000.00", "market_value": "96800000.00", "value_30d_ago": "103600000.00"}
+      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "150000000.00", "market_value": "152400000.00", "value_30d_ago": "151900000.00", "as_of": "2026-06-15T09:00:00"},
+      {"instrument": "Reksa Dana Pendapatan Tetap Garuda", "asset_class": "BOND", "cost_basis": "200000000.00", "market_value": "198500000.00", "value_30d_ago": "201300000.00", "as_of": "2026-06-15T09:00:00"},
+      {"instrument": "PT Bank Central Asia Tbk (BBCA)", "asset_class": "EQUITY", "cost_basis": "250000000.00", "market_value": "241000000.00", "value_30d_ago": "259500000.00", "as_of": "2026-06-15T09:00:00"},
+      {"instrument": "Reksa Dana Indeks IDX30", "asset_class": "EQUITY", "cost_basis": "100000000.00", "market_value": "96800000.00", "value_30d_ago": "103600000.00", "as_of": "2026-06-15T09:00:00"}
     ]
   }
 }

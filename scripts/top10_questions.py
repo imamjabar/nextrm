@@ -28,11 +28,11 @@ CASES = [
     (2, 'How much can I safely spend or save this month without running short?', 'SAVINGS', [AMOUNT, r'25 Oct|payday|salary']),
     (3, 'How do I start building wealth or investing with limited money?', 'WEALTH', [r'buffer|debt|card|surplus', ADVISOR]),
     (4, 'Am I on track for my goals like school fees and an emergency fund?', 'SAVINGS', [AMOUNT, r'on track|behind|short|gap|needs']),
-    (5, 'Is my portfolio performing well and what should I do next?', 'WEALTH', [r'IDR 10,399,000', ADVISOR]),
+    (5, 'Is my portfolio performing well and what should I do next?', 'WEALTH', [r'IDR (?:10,399,000|15,524,000)', ADVISOR]),
     (6, 'Should I pay down my credit card, save more, or invest extra cash?', 'WEALTH', [r'IDR 84,000', r'certain|uncertain|months', ADVISOR]),
     (7, 'Are there subscriptions or recurring costs I can cut?', 'SAVINGS', [AMOUNT, r'Spotify|Padang|dining']),
     (8, 'What product or action should I take next to improve my finances?', 'SAVINGS', [AMOUNT, r'card|buffer|goal']),
-    (9, 'How is my overall financial health and net worth trending?', 'SAVINGS', [r'IDR 18,699,000']),
+    (9, 'How is my overall financial health and net worth trending?', 'SAVINGS', [r'IDR (?:18,699,000|23,824,000)']),
     (10, 'Why did my investments drop, is this normal, and should I sell?', 'WEALTH', [r'6\.10%', ADVISOR]),
 ]
 FORBIDDEN = [r'\d{7,}\.\d\d', r'could not answer that reliably']
