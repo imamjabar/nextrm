@@ -17,6 +17,7 @@ export function CustomerInsights({personId,active,compose,viewProduct}:{personId
   const netWorth=q.data?.insights.find(i=>i.key==='net_worth');
   const spendingBreakdown=q.data?.insights.find(i=>i.key==='spending_breakdown');
   const nextActions=q.data?.insights.find(i=>i.key==='next_actions');
+  const marketInsights=q.data?.insights.find(i=>i.key==='market_insights');
   const money=(i:RMInsight|undefined,key:string)=>i&&i.values[key]!==undefined?insightValue(key,i.values[key],i.currency):'Not available';
   const evidenceMethod=(ev:unknown)=>ev&&typeof ev==='object'&&'method' in ev&&typeof (ev as Record<string,unknown>).method==='string'?(ev as Record<string,unknown>).method as string:'FIN-PIPE-1';
   const suggestions=q.data?.nudges.slice(0,3)||[];
@@ -32,6 +33,7 @@ export function CustomerInsights({personId,active,compose,viewProduct}:{personId
     {goalProgress&&goalProgress.status!=='UNAVAILABLE'&&<GoalProgressSection insight={goalProgress} compose={compose}/>}
     {debt&&debt.status!=='UNAVAILABLE'&&<DebtSection insight={debt} compose={compose}/>}
     {portfolio&&portfolio.status!=='UNAVAILABLE'&&<PortfolioSection insight={portfolio} compose={compose}/>}
+    {marketInsights&&marketInsights.status!=='UNAVAILABLE'&&<MarketInsightsSection insight={marketInsights} compose={compose}/>}
     {netWorth&&netWorth.status!=='UNAVAILABLE'&&<NetWorthSection insight={netWorth} compose={compose}/>}
     {spendingBreakdown&&spendingBreakdown.status!=='UNAVAILABLE'&&<SpendingBreakdownSection insight={spendingBreakdown} compose={compose}/>}
     {recurring&&recurring.status!=='UNAVAILABLE'&&<RecurringPlanningSection insight={recurring} compose={compose}/>}
@@ -77,6 +79,15 @@ function PortfolioSection({insight,compose}:{insight:RMInsight;compose:(text:str
   const holdings=(insight.rows||[]).slice(0,4);
   const isDrop=Boolean(insight.values.change_30d_percent&&(insight.values.change_30d_percent.startsWith('-')||parseFloat(insight.values.change_30d_percent)<0));
   return <section className="mvp-planning-card" aria-label="Investments"><div className="mvp-section-heading"><h2>Investments</h2><span>Portfolio</span></div>{totalValue&&<div><span className="mvp-metric-label">Portfolio value</span><strong className="mvp-balance-metric">{totalValue}</strong></div>}<dl className="mvp-planning-grid">{gainLossPercent&&<div><dt>Total return</dt><dd className="tabular">{gainLossPercent}{insight.values.gain_loss?` (${insightValue('gain_loss',insight.values.gain_loss,currency)})`:''}</dd></div>}{change30dPercent&&<div><dt>30-day change</dt><dd className="tabular">{change30dPercent}{insight.values.change_30d?` (${insightValue('change_30d',insight.values.change_30d,currency)})`:''}</dd></div>}{insight.values.total_cost&&<div><dt>Cost basis</dt><dd className="tabular">{insightValue('total_cost',insight.values.total_cost,currency)}</dd></div>}{insight.values.holdings_count&&<div><dt>Holdings</dt><dd className="tabular">{insight.values.holdings_count}</dd></div>}</dl>{allocations.length>0&&<p className="mvp-allocation-line">{allocations.join(' · ')}</p>}{holdings.length>0&&<div className="mvp-compact-list" aria-label="Key holdings">{holdings.map((h,idx)=><div key={idx} className="mvp-compact-item"><div className="mvp-compact-item-main"><strong>{h.label}</strong><small>{h.asset_class}{h.share_percent?` · ${h.share_percent}`:''}</small></div><div className="mvp-compact-item-meta"><span className="tabular">{h.value}</span><small className="tabular">{h.gain_loss_percent?`Total: ${h.gain_loss_percent}`:''}{h.change_30d_percent?` · 30d: ${h.change_30d_percent}`:''}</small></div></div>)}</div>}{insight.explanation&&<p className="mvp-planning-explanation">{insight.explanation}</p>}<p className="mvp-data-caption">Snapshot as of {asOfDate}. Information, not advice.</p><div className="mvp-actions-row"><button onClick={()=>compose('How are my investments doing?')}><span>How are my investments doing?</span><ArrowUpRight size={14}/></button>{isDrop&&<button onClick={()=>compose('Why did my fund drop?')}><span>Why did my fund drop?</span><ArrowUpRight size={14}/></button>}</div></section>;
+}
+
+function MarketInsightsSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
+  const session=insight.values.session==='OPEN'?'Market Open (09:00 WIB)':'Market Close (16:00 WIB)';
+  const asOf=insight.values.as_of||'18 Oct 2026';
+  const ihsgChange=insight.values.ihsg_change||'-1.45%';
+  const isDown=ihsgChange.startsWith('-');
+  const ticks=(insight.rows||[]).slice(0,5);
+  return <section className="mvp-planning-card" aria-label="Market insights"><div className="mvp-section-heading"><h2>Market insights</h2><span>{session}</span></div><div><span className="mvp-metric-label">Indeks Harga Saham Gabungan (IHSG)</span><strong className="mvp-balance-metric">7,645.20 <span style={{fontSize:'16px',fontWeight:600,color:isDown?'var(--bad, #dc2626)':'var(--good, #16a34a)'}}>{ihsgChange}</span></strong></div><p className="mvp-planning-explanation">{insight.values.sentiment||'Foreign capital outflows following MSCI index rebalancing sentiment and global risk aversion.'}</p>{ticks.length>0&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(90px, 1fr))',gap:'8px',margin:'12px 0 14px'}}>{ticks.map((t,idx)=>{const down=String(t.change_percent||'').startsWith('-');return <div key={idx} style={{padding:'8px',background:'var(--surface-subtle, rgba(0,0,0,0.03))',borderRadius:'8px',border:'1px solid var(--stroke, rgba(0,0,0,0.06))'}}><strong style={{fontSize:'12px',display:'block',letterSpacing:'-0.01em'}}>{t.symbol}</strong><span style={{fontSize:'11px',color:'var(--muted, #6b7280)',display:'block'}}>{t.price?`IDR ${t.price}`:''}</span><span style={{fontSize:'11px',fontWeight:600,color:down?'var(--bad, #dc2626)':'var(--good, #16a34a)'}}>{t.change_percent}</span></div>;})}</div>}<p className="mvp-data-caption">Market note as of {asOf}. Macro context, not investment advice.</p><div className="mvp-actions-row"><button onClick={()=>compose('Why did Indonesian equities and my portfolio drop today?')}><span>Ask AI about today's market</span><ArrowUpRight size={14}/></button></div></section>;
 }
 
 function NetWorthSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){

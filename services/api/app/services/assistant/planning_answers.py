@@ -123,7 +123,7 @@ def build(intent: str, financial: list, kb: dict) -> Optional[tuple[str, list[st
 
 ORIGINAL_CARDS = frozenset({'cash_flow', 'spending', 'recurring', 'salary', 'idle_cash', 'term_deposit', 'balance_trend'})
 BASE_CARDS = frozenset({'cash_flow', 'spending', 'balance_trend', 'salary'})
-PLANNING_CARDS = frozenset({'spending_breakdown', 'safe_to_spend', 'goal_progress', 'debt', 'portfolio', 'net_worth', 'next_actions'})
+PLANNING_CARDS = frozenset({'spending_breakdown', 'safe_to_spend', 'goal_progress', 'debt', 'portfolio', 'net_worth', 'next_actions', 'market_insights'})
 INTENT_CARDS = {
     'spending': {'spending_breakdown', 'recurring'},
     'safe': {'safe_to_spend', 'goal_progress'},
@@ -132,9 +132,9 @@ INTENT_CARDS = {
     'recurring': {'recurring', 'spending_breakdown'},
     'health': {'net_worth', 'debt', 'portfolio', 'goal_progress', 'safe_to_spend'},
     'next': PLANNING_CARDS,
-    'portfolio': {'portfolio', 'goal_progress', 'safe_to_spend', 'net_worth'},
-    'market_drop': {'portfolio', 'goal_progress', 'safe_to_spend'},
-    'invest_start': {'safe_to_spend', 'debt', 'portfolio', 'goal_progress', 'net_worth'},
+    'portfolio': {'portfolio', 'goal_progress', 'safe_to_spend', 'net_worth', 'market_insights'},
+    'market_drop': {'portfolio', 'goal_progress', 'safe_to_spend', 'market_insights'},
+    'invest_start': {'safe_to_spend', 'debt', 'portfolio', 'goal_progress', 'net_worth', 'market_insights'},
 }
 
 

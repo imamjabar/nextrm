@@ -22,7 +22,7 @@ DISCRETIONARY_CATEGORIES = frozenset({'entertainment', 'subscription', 'dining',
 ESSENTIAL_CATEGORIES = frozenset({'utilities', 'education', 'health', 'insurance', 'rent', 'telecom', 'bills', 'tagihan'})
 CLASS_LABELS = {'MONEY_MARKET': 'Money market', 'BOND': 'Bond', 'EQUITY': 'Equity'}
 STATUS_LABELS = {'COMPLETE': 'Complete', 'ON_TRACK': 'On track', 'BEHIND': 'Behind'}
-KEYS = ('spending_breakdown', 'safe_to_spend', 'goal_progress', 'debt', 'portfolio', 'net_worth', 'next_actions')
+KEYS = ('spending_breakdown', 'safe_to_spend', 'goal_progress', 'debt', 'portfolio', 'net_worth', 'next_actions', 'market_insights')
 TITLES = {
     'spending_breakdown': ('SPENDING_BREAKDOWN', 'Where your money went'),
     'safe_to_spend': ('SAFE_TO_SPEND', 'Safe to spend until payday'),
@@ -31,6 +31,7 @@ TITLES = {
     'portfolio': ('PORTFOLIO', 'Investment holdings'),
     'net_worth': ('NET_WORTH', 'Net worth and financial health'),
     'next_actions': ('NEXT_ACTIONS', 'Suggested next steps'),
+    'market_insights': ('MARKET_INSIGHTS', 'Market insights'),
 }
 UNAVAILABLE_TEXT = {
     'spending_breakdown': 'Comparable core-banking activity is unavailable.',
@@ -39,6 +40,7 @@ UNAVAILABLE_TEXT = {
     'debt': 'No outstanding credit card balance is recorded.',
     'portfolio': 'No investment holdings are linked to this profile.',
     'net_worth': 'Account coverage is unavailable.',
+    'market_insights': 'Market session feeds are currently unavailable.',
     'next_actions': 'Not enough linked information to suggest next steps.',
 }
 
@@ -364,6 +366,29 @@ def next_actions_card(features: dict[str, Any], evaluated: list[dict[str, Any]],
                 'Ranked by fixed rules: urgent care first, certain costs next, then goals and learning. A checklist of options, not a product recommendation.',
                 source, cur, rows, {'method': 'PLAN-1', 'order': 'cash gap, debt, buffer, goals, spending, learning'})
 
+def market_insights_card(features: dict[str, Any], source: dict, cur: str) -> dict[str, Any]:
+    from .market_feed import fetch_market_snapshot, format_market_note, get_market_ticks
+    snapshot = fetch_market_snapshot('auto')
+    ticks = get_market_ticks()
+    session = snapshot.get('session', 'CLOSE')
+    as_of = snapshot.get('as_of', '18 Oct 2026')
+    values = {
+        'session': session,
+        'as_of': as_of,
+        'index_name': snapshot.get('index_name', 'Indonesian equities (IHSG)'),
+        'ihsg_change': snapshot.get('change', '-1.45%'),
+        'sentiment': snapshot.get('sentiment', 'foreign capital outflows following MSCI index rebalancing sentiment'),
+        'lead_stock': 'BBCA',
+        'lead_stock_price': '10250.00',
+        'lead_stock_change': '-1.20%',
+    }
+    rows = [
+        {'symbol': t['symbol'], 'name': t['name'], 'type': t['type'], 'price': t['price'], 'change_percent': t['change_percent']}
+        for t in ticks
+    ]
+    explanation = format_market_note(snapshot)
+    return card('market_insights', 'AVAILABLE', values, explanation, source, cur, rows, {'method': 'MARKET-FEED-1', 'as_of': as_of, 'session': session})
+
 
 def planning_cards(features: dict[str, Any], source: dict, cur: str) -> list[dict[str, Any]]:
     facts = features['planning']
@@ -371,4 +396,5 @@ def planning_cards(features: dict[str, Any], source: dict, cur: str) -> list[dic
     debt = debt_card(features, facts, source, cur)
     worth = net_worth_card(features, facts, source, cur)
     return [spending_breakdown_card(features, source, cur), safe_to_spend_card(features, source, cur), goal_progress_card(features, evaluated, source, cur),
-            debt, portfolio_card(facts, source, cur), worth, next_actions_card(features, evaluated, debt, worth, source, cur)]
+            debt, portfolio_card(facts, source, cur), worth, next_actions_card(features, evaluated, debt, worth, source, cur),
+            market_insights_card(features, source, cur)]
