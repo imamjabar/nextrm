@@ -4,7 +4,7 @@
 
 Theme: **BFSI: Intelligent Risk, Fraud & Financial Experiences** (Google Cloud AI Builder Cup 2026).
 
-**Live demo:** <https://nextrm-web-551212450229.asia-southeast1.run.app/demo>. Choose a synthetic account: Dina (customer), Maya (RM), Arif (AI admin) or Intan (quality reviewer). The data is synthetic, and the demo resets whenever the API instance restarts.
+**Live demo:** <https://nextrm-web-551212450229.asia-southeast1.run.app/demo>. Choose a synthetic account: Dina (customer), Maya (RM), Arif (AI admin) or Intan (quality reviewer). The data is synthetic and persists in Cloud SQL; `scripts/gcp/reset-demo-data.sh --yes` restores it. The API scales to zero when idle, so the first request after a quiet period waits for a container start.
 
 ---
 
