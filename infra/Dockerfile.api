@@ -1,0 +1,11 @@
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="/app/services/api" PORT=8000
+COPY requirements.txt requirements-google.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-google.txt
+COPY services/ services/
+COPY data/ data/
+COPY scripts/seed_demo.py scripts/
+COPY scripts/gcp/demo-api-entrypoint.sh scripts/gcp/db-setup.sh scripts/gcp/
+COPY alembic.ini ./
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

@@ -1,0 +1,39 @@
+{
+  "note": "Synthetic planning data for the demo. Customer keys match customers.json. Amounts are IDR decimal strings; nothing here is real customer data.",
+  "account_terms": {
+    "SAVINGS": {"interest_rate_percent": "2.50"},
+    "TERM_DEPOSIT": {"interest_rate_percent": "4.75"},
+    "CREDIT_CARD": {"interest_rate_percent": "24.00", "minimum_percent": "5.00", "minimum_floor": "50000.00"}
+  },
+  "credit_cards": {
+    "DINA": {"balance": "4200000.00", "due_day": 28}
+  },
+  "goals": {
+    "DINA": [
+      {"name": "Dana Pendidikan Anak", "target_amount": "20000000.00", "saved_amount": "5000000.00", "monthly_plan": "1500000.00", "target_date": "2027-07-01"},
+      {"name": "Dana Darurat", "target_amount": "15000000.00", "saved_amount": "3000000.00", "monthly_plan": "500000.00", "target_date": "2027-12-31"}
+    ],
+    "NABILA": [
+      {"name": "Laptop Kerja Baru", "target_amount": "18000000.00", "saved_amount": "4000000.00", "monthly_plan": "1000000.00", "target_date": "2027-03-31"}
+    ],
+    "ADITYA": [
+      {"name": "Dana Pensiun", "target_amount": "5000000000.00", "saved_amount": "1200000000.00", "monthly_plan": "25000000.00", "target_date": "2040-12-31"}
+    ]
+  },
+  "holdings": {
+    "DINA": [
+      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "4000000.00", "market_value": "4056000.00", "value_30d_ago": "4043000.00"},
+      {"instrument": "Reksa Dana Pendapatan Tetap Garuda", "asset_class": "BOND", "cost_basis": "3000000.00", "market_value": "3018000.00", "value_30d_ago": "3030000.00"},
+      {"instrument": "Reksa Dana Indeks IDX30", "asset_class": "EQUITY", "cost_basis": "3500000.00", "market_value": "3325000.00", "value_30d_ago": "3541000.00"}
+    ],
+    "NABILA": [
+      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "2000000.00", "market_value": "2018000.00", "value_30d_ago": "2011000.00"}
+    ],
+    "ADITYA": [
+      {"instrument": "Reksa Dana Pasar Uang Nusantara", "asset_class": "MONEY_MARKET", "cost_basis": "150000000.00", "market_value": "152400000.00", "value_30d_ago": "151900000.00"},
+      {"instrument": "Reksa Dana Pendapatan Tetap Garuda", "asset_class": "BOND", "cost_basis": "200000000.00", "market_value": "198500000.00", "value_30d_ago": "201300000.00"},
+      {"instrument": "Reksa Dana Saham Prima Indonesia", "asset_class": "EQUITY", "cost_basis": "250000000.00", "market_value": "241000000.00", "value_30d_ago": "259500000.00"},
+      {"instrument": "Reksa Dana Indeks IDX30", "asset_class": "EQUITY", "cost_basis": "100000000.00", "market_value": "96800000.00", "value_30d_ago": "103600000.00"}
+    ]
+  }
+}

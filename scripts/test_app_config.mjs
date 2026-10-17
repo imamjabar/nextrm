@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),ts=require('../apps/web/node_modules/typescript');
+const source=fs.readFileSync(new URL('../apps/web/src/lib/app-config.ts',import.meta.url),'utf8');
+let calls=0,complete;
+const context={exports:{},fetch:()=>{calls++;return new Promise(resolve=>{complete=resolve;});}};
+vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,context);
+const {getAppConfig}=context.exports;
+const one=getAppConfig(),two=getAppConfig();assert.equal(calls,1);
+complete({ok:true,json:async()=>({authProvider:'synthetic_demo',demoMode:true})});await Promise.all([one,two]);
+const next=getAppConfig();assert.equal(calls,2);complete({ok:true,json:async()=>({authProvider:'firebase',demoMode:false})});assert.equal((await next).authProvider,'firebase');
+const failed=getAppConfig();complete({ok:false});await assert.rejects(failed,/configuration unavailable/);
+const recovered=getAppConfig();assert.equal(calls,4);complete({ok:true,json:async()=>({authProvider:'synthetic_demo',demoMode:true})});await recovered;
+console.log('PASS: public config concurrent reads coalesce; runtime changes and failure recovery remain fresh');

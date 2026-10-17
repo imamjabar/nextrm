@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import ts from '../apps/web/node_modules/typescript/lib/typescript.js';
+const source=fs.readFileSync(new URL('../apps/web/src/lib/presentation.ts',import.meta.url),'utf8');
+const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const context={exports:{},Intl,Date};vm.runInNewContext(output,context);
+const {money,dateLabel}=context.exports;
+assert.equal(money('9007199254740993.25'),'IDR 9,007,199,254,740,993.25');
+assert.equal(money('0.00'),'IDR 0');
+assert.equal(money(null),'Not available');
+assert.equal(money('NaN'),'Not available');
+assert.equal(money('-1234.50'),'IDR -1,234.5');
+assert.equal(dateLabel('2026-11-30'),'30 Nov 2026');
+assert.equal(dateLabel('2026-09-28 20:00:00'),'29 Sept 2026');
+console.log('PASS: exact decimal-string money formatting, missing values and Jakarta date handling');

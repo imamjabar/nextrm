@@ -1,0 +1,62 @@
+/** React component and module contracts in Node; no browser/computer automation. */
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import {createRequire} from 'node:module';
+const require=createRequire(new URL('../apps/web/package.json',import.meta.url));
+const React=require('react'),Renderer=require('react-test-renderer'),ts=require('typescript');
+const {act}=Renderer;
+const root=path.resolve('apps/web/src');
+const cache=new Map(),overrides=new Map();
+const storage=new Map();
+const sessionStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,String(value)),removeItem:key=>storage.delete(key)};
+let locationRequests=0,located,pathname='/customer/chat';
+const window={matchMedia:()=>({matches:false,addEventListener(){},removeEventListener(){}}),addEventListener(){},removeEventListener(){},history:{replaceState(){}},location:{search:'',assign(value){pathname=value;}}};
+const navigator={geolocation:{getCurrentPosition(success){locationRequests++;located=success;}}};
+const document={visibilityState:'visible',getElementById:()=>null};
+const link=({children,href,...props})=>React.createElement('a',{href,...props},children);
+const router={push:href=>{pathname=href;},prefetch(){}};
+function load(file){
+ const full=path.resolve(root,file);if(cache.has(full))return cache.get(full).exports;
+ const module={exports:{}};cache.set(full,module);
+ const source=fs.readFileSync(full,'utf8');
+ const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText;
+ const resolve=(id)=>{
+  if(overrides.has(id))return overrides.get(id);
+  if(id==='next/link')return {__esModule:true,default:link};
+  if(id==='next/navigation')return {useRouter:()=>router,usePathname:()=>pathname};
+  if(id.startsWith('@/')||id.startsWith('.')){let target=id.startsWith('@/')?path.join(root,id.slice(2)):path.resolve(path.dirname(full),id);if(!path.extname(target))target=['.ts','.tsx'].map(ext=>target+ext).find(fs.existsSync);const alias='@/'+path.relative(root,target).replace(/\.(tsx?|jsx?)$/,'');if(overrides.has(alias))return overrides.get(alias);return load(target);}
+  return require(id);
+ };
+ vm.runInNewContext(`(function(require,module,exports){${code}\n})`,{console,React,Error,process:{env:{NODE_ENV:'test'}},window,document,navigator,sessionStorage,Headers,URL,URLSearchParams,crypto:globalThis.crypto,fetch:(...args)=>globalThis.fetch(...args),setTimeout,clearTimeout,setInterval,clearInterval,requestAnimationFrame:fn=>setTimeout(fn,0),cancelAnimationFrame:clearTimeout},{filename:full})(resolve,module,module.exports);
+ return module.exports;
+}
+const text=node=>typeof node==='string'||typeof node==='number'?String(node):Array.isArray(node)?node.map(text).join(''):node?.children?text(node.children):'';
+const button=(tree,label)=>{const matches=tree.root.findAllByType('button').filter(node=>text(node.toJSON?node.toJSON():{children:node.children.map(c=>typeof c==='string'?c:c.toJSON?c.toJSON():c)})===label);if(matches.length!==1)throw new Error(`Expected one button ${label}; got ${matches.length}`);return matches[0];};
+const labelText=node=>typeof node==='string'?node:node?.children?node.children.map(labelText).join(''):'';
+const click=async(tree,name)=>{const found=tree.root.findAllByType('button').find(node=>labelText(node).trim()===name.trim());assert.ok(found,`Missing button: ${name}`);assert.ok(!found.props.disabled,`Disabled: ${name}`);await act(async()=>{found.props.onClick();});};
+const options={createNodeMock:()=>({scrollTo(){},focus(){},scrollHeight:100})};
+const shared=load('components/rm/shared.tsx'),api=load('lib/api.ts');
+const definition={rules:[{id:'deposit',name:'Deposit guidance',keywords:['deposit'],route:'DEPOSIT',priority:60,enabled:true,steps:['READ_KNOWLEDGE','ANSWER','ASK_CLARIFICATION','PROPOSE_SIGNAL'],question:'When do you need access?',examples:['Explain deposits']}],repeat_view_threshold:5,behavior_window_days:7,spending_change_percent:25,max_nudges:3,enabled_families:['E03','E09']};
+const gov={version:1,definition,tested:false,tests:[],release_id:null,release_version:0,history:[],boundaries:['No payments or loan decisions']};
+let calls=[];const refresh=async()=>{};
+overrides.set('@/components/rm/shared',{...shared,useRM:()=>({data:gov,error:'',refresh,pending:false})});
+overrides.set('@/lib/api',{...api,fetchApi:async(endpoint,options)=>{const body=JSON.parse(options.body);calls.push({endpoint,body});return gov;}});
+const Governance=load('app/(workspace)/settings/governance/page.tsx').default;
+let tree;await act(async()=>{tree=Renderer.create(React.createElement(Governance),options);});
+const publish=tree.root.findAllByType('button').find(n=>labelText(n).includes('Publish tested version'));assert.ok(publish.props.disabled);
+const name=tree.root.findAllByType('label').find(n=>labelText(n).startsWith('Intent name'));await act(async()=>name.findByType('input').props.onChange({target:{value:'Updated deposit guidance'}}));
+const reason=tree.root.findAllByType('label').find(n=>labelText(n).startsWith('Change / test / release reason'));await act(async()=>reason.findByType('input').props.onChange({target:{value:'Explain access before discussing options.'}}));
+await click(tree,'Save draft');assert.equal(calls.at(-1).body.definition.rules[0].name,'Updated deposit guidance');assert.equal(calls.at(-1).body.base_version,1);
+assert.ok(labelText(tree.root).includes('Runtime still uses the released policy.'));
+await act(async()=>tree.unmount());console.log('PASS actual governance editor, typed draft mutation, test-before-publish UI and runtime/draft distinction');
+const assignments={rms:[{id:'usr-maya',name:'Maya Putri',version:1,dedicated_limit:200,case_limit:30,pool_enabled:true,dedicated_customers:3,active_cases:0}],customers:[{id:'dina',name:'Dina Rahma',kind:'PERSON',version:1,mode:'DEDICATED',rm_id:'usr-maya',tier:'STANDARD'}],next_cursor:null,pool_cases:0,method:'Metadata only; capacity checked.'};
+overrides.set('@/components/rm/shared',{...shared,useRM:()=>({data:assignments,error:'',refresh,pending:false})});
+const Assignments=load('app/(workspace)/settings/assignments/page.tsx').default;
+await act(async()=>{tree=Renderer.create(React.createElement(Assignments),options);});
+assert.ok(labelText(tree.root).includes('Shared service pool'));assert.ok(labelText(tree.root).includes('does not grant access to customer chat'));
+const model=tree.root.findAllByType('label').find(n=>labelText(n).startsWith('Service model'));await act(async()=>model.findByType('select').props.onChange({target:{value:'POOL'}}));
+const assignmentReason=tree.root.findAllByType('label').find(n=>labelText(n).startsWith('Assignment change reason'));await act(async()=>assignmentReason.findByType('input').props.onChange({target:{value:'Use shared support for this standard relationship.'}}));
+await click(tree,'Save coverage');assert.equal(calls.at(-1).body.mode,'POOL');assert.equal(calls.at(-1).body.rm_id,null);assert.equal(calls.at(-1).body.base_version,1);
+await act(async()=>tree.unmount());console.log('PASS actual RM coverage editor, service/tier separation, metadata boundary and exact-version pooled assignment');

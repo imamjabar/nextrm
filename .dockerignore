@@ -1,0 +1,15 @@
+.git
+.venv
+**/node_modules
+**/.next
+**/.next-local
+**/.next-turbo
+**/__pycache__
+**/.pytest_cache
+*.db
+*.db-shm
+*.db-wal
+runtime
+.env
+.env.*
+services/api/tests

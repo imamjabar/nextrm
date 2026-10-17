@@ -1,0 +1,343 @@
+[
+  {
+    "key": "savings",
+    "title": "Everyday savings · Product facts",
+    "body": "An everyday savings account is intended for accessible money and routine payments. Keep near-term expenses and emergency needs accessible. Interest rates, fees and opening requirements depend on the current bank terms; this prototype does not provide a binding rate or account-opening approval.",
+    "topics": [
+      "saving",
+      "emergency",
+      "school",
+      "education",
+      "holiday",
+      "goal"
+    ]
+  },
+  {
+    "key": "deposit",
+    "title": "Term deposits · Access and maturity",
+    "body": "A term deposit holds money for an agreed period. Check the maturity date, early-withdrawal conditions, renewal instruction and current pricing before choosing. Money needed before maturity should not be assumed available without reviewing withdrawal terms. This prototype has no approved live deposit rate.",
+    "topics": [
+      "deposit",
+      "maturity",
+      "renew",
+      "interest"
+    ]
+  },
+  {
+    "key": "payments",
+    "title": "Transfers and payment status · Service help",
+    "body": "A transfer reported as missing requires a status check against the original transaction reference. A customer report does not establish that the transfer failed or settled. Never repeat the transfer solely because the recipient cannot see it. An authorized service team can investigate the original reference.",
+    "topics": [
+      "transfer",
+      "payment",
+      "recipient",
+      "pending"
+    ]
+  },
+  {
+    "key": "cards",
+    "title": "Card help · Safety and service",
+    "body": "For a lost card or suspected unauthorized card activity, use the bank's verified card-blocking or security-support channel promptly. Do not share a PIN, password or one-time code in chat. This prototype can prepare a service request but cannot block a real card or reverse a payment.",
+    "topics": [
+      "card",
+      "lost",
+      "stolen",
+      "fraud",
+      "scam",
+      "unauthorized"
+    ]
+  },
+  {
+    "key": "wealth",
+    "title": "Investment education · Advisor boundary",
+    "body": "An investment recommendation requires the institution's approved eligibility and suitability process, including declared goals, horizon, liquidity needs and permitted assessments. Customer sentiment, chat style and a large incoming payment do not establish risk tolerance or investable surplus. Personal investment recommendations are not enabled in this institution fixture. The assistant can show a customer's linked holdings, explain general investment concepts and approved market notes, and an RM may discuss the customer's goals without making an investment recommendation.",
+    "topics": [
+      "invest",
+      "invests",
+      "investing",
+      "investment",
+      "investments",
+      "fund",
+      "funds",
+      "stock",
+      "risk",
+      "retirement",
+      "portfolio"
+    ]
+  },
+  {
+    "key": "privacy",
+    "title": "Conversation privacy and communication choice",
+    "body": "Customer assistance is limited to permitted customer context and approved information. Internal RM notes, other customers' data and private system instructions are not customer-facing information. A refusal of commercial contact must be recorded and respected. Factual help and requested service assistance remain available.",
+    "topics": [
+      "privacy",
+      "internal",
+      "system",
+      "contact",
+      "stop",
+      "unsubscribe"
+    ]
+  },
+  {
+    "key": "merchant",
+    "title": "Business collections · Needs discussion",
+    "body": "A business collections service can help identify incoming customer payments and their references. Discuss the current payment channels, reconciliation needs and authorized business contact first. A public business listing does not establish product need, creditworthiness, permission to contact or signing authority. Formal onboarding remains separate.",
+    "topics": [
+      "business",
+      "merchant",
+      "collection",
+      "invoice"
+    ]
+  },
+  {
+    "key": "help",
+    "title": "Scope of this banking prototype",
+    "body": "This prototype supports approved savings/deposit education, payment and card service help, goal clarification, spending, goal, debt and portfolio insights from linked data, and a reviewed RM conversation. It cannot execute financial transactions, approve loans, certify documents, give personal investment recommendations or offer unavailable products. If information is missing, ask for the relevant need or route to an authorized person.",
+    "topics": [
+      "help",
+      "bank",
+      "account",
+      "loan",
+      "credit",
+      "fee",
+      "rate"
+    ]
+  },
+  {
+    "key": "loan",
+    "title": "Loans · Separate banking-menu boundary",
+    "body": "NextRM helps clarify a customer’s loan need and prepare a relevant RM conversation. A customer starts a loan application in the bank’s separate loan menu or application. That destination owns eligibility, required documents, approval and fulfillment. NextRM cannot make or approve a loan, open a product, execute funds or reconcile transactions. A reviewed need, menu redirect or RM follow-up does not establish loan approval or product completion.",
+    "topics": [
+      "loan"
+    ]
+  },
+  {
+    "key": "bifast",
+    "title": "BI-FAST and transfer limits · Synthetic bank policy",
+    "body": "Synthetic bank policy: BI-FAST allows real-time interbank fund transfers up to Rp 250.000.000 per transaction and per day through mobile banking with a synthetic fee of Rp 2.500. SKN (Clearing) supports transfers up to Rp 1.000.000.000 settled in batches during banking business hours. RTGS is used for high-value urgent transfers above Rp 100.000.000. Transfers outside operating cutoff hours or exceeding limits will not process immediately.",
+    "topics": [
+      "bifast",
+      "skn",
+      "rtgs",
+      "transfer limit",
+      "interbank"
+    ]
+  },
+  {
+    "key": "card_block",
+    "title": "Card blocking and emergency security · Prototype service",
+    "body": "Customers can temporarily freeze their debit card instantly in the mobile banking app under Card Management. Permanent card blocking for lost, stolen, or compromised cards cannot be undone and requires ordering a replacement card. NextRM helps direct you to the official card security menu but cannot directly execute card blocking or dispute filing.",
+    "topics": [
+      "card blocking",
+      "block card",
+      "freeze card",
+      "lost card"
+    ]
+  },
+  {
+    "key": "mobile_banking",
+    "title": "Mobile banking assistance · Access and security",
+    "body": "Mobile banking requires verified device binding and biometric or passcode authentication. For device changes or locked accounts, identity verification must be completed through the bank's official verification flow. Never disclose your mobile banking passcode, SMS OTP, or MPIN to anyone, including bank staff.",
+    "topics": [
+      "mobile banking",
+      "device binding",
+      "login",
+      "biometric",
+      "passcode"
+    ]
+  },
+  {
+    "key": "fee_schedule",
+    "title": "Account and transaction fees · Synthetic prototype schedule",
+    "body": "Synthetic prototype schedule: Everyday savings monthly administration fee is Rp 10.000, waived with a minimum average balance of Rp 5.000.000. Interbank BI-FAST transfer fee is Rp 2.500. ATM cash withdrawals at bank network machines are free of charge, while interbank shared network withdrawals incur a synthetic fee of Rp 7.500.",
+    "topics": [
+      "fee",
+      "fees",
+      "admin fee",
+      "tariff",
+      "schedule"
+    ]
+  },
+  {
+    "key": "salary_account",
+    "title": "Payroll and salary accounts · Employee banking",
+    "body": "A corporate payroll salary account provides zero monthly administration fees and preferential personal banking terms when regular salary deposits are maintained. Corporate payroll agreements are established through institutional RM relationship agreements. Individual employees link their accounts via company HR notification.",
+    "topics": [
+      "salary",
+      "payroll",
+      "salary account"
+    ]
+  },
+  {
+    "key": "sme_current_account",
+    "title": "SME business current account · Giro terms",
+    "body": "A business current (giro) account is designed for operational cash flow, supporting multiple authorized signatories, check and bilyet giro issuance, and monthly consolidated account statements. Onboarding requires registered business documentation (NIB/NPWP) and legal representative verification through an RM.",
+    "topics": [
+      "sme",
+      "current account",
+      "giro",
+      "business account"
+    ]
+  },
+  {
+    "key": "qris_merchant",
+    "title": "QRIS merchant collections · Acceptance terms",
+    "body": "QRIS merchant services enable businesses to accept cashless payments from all licensed mobile banking and e-wallet applications using static or dynamic QR codes. Synthetic merchant settlement funds are credited to the linked merchant checking account on the next business day (T+1). Merchant discount rates (MDR) comply with regulatory standards.",
+    "topics": [
+      "qris",
+      "merchant",
+      "qr code",
+      "settlement"
+    ]
+  },
+  {
+    "key": "fraud_safety",
+    "title": "Fraud prevention and scam awareness · Security policy",
+    "body": "The bank will never ask for your PIN, OTP, password, card CVV, or full card number via telephone, email, messaging apps, or links. Beware of fraudulent messages impersonating bank officers offering fake promotions, lottery prizes, or threatening account suspension. Report suspicious contact to the official fraud hotline immediately.",
+    "topics": [
+      "fraud",
+      "scam",
+      "phishing",
+      "suspicious"
+    ]
+  },
+  {
+    "key": "complaints",
+    "title": "Customer complaints and dispute resolution · Process",
+    "body": "Customer complaints regarding transactions or service issues are investigated by the authorized customer care team. Standard resolution timeframe is within 14 to 20 business days depending on interbank network verification. Customers receive an official ticket reference number to track resolution progress.",
+    "topics": [
+      "complaint",
+      "dispute",
+      "investigation",
+      "ticket"
+    ]
+  },
+  {
+    "key": "goal_savings",
+    "title": "Goal-based scheduled savings · Product terms",
+    "body": "Goal savings allows customers to set targeted savings amounts and automatic monthly debit contributions for education, holidays, or major purchases. Funds can be withdrawn upon goal maturity or closed early subject to the prototype bank's withdrawal guidelines.",
+    "topics": [
+      "goal savings",
+      "target saving",
+      "education saving"
+    ]
+  },
+  {
+    "key": "deposit_terms",
+    "title": "Term deposit early withdrawal and rollover policy",
+    "body": "Term deposits offer flexible terms of 1, 3, 6, or 12 months. Automatic rollover (ARO) options allow principal or principal plus interest to renew automatically at maturity. Early withdrawal prior to maturity incurs forfeiture of accrued interest in accordance with synthetic bank deposit rules.",
+    "topics": [
+      "rollover",
+      "aro",
+      "early withdrawal"
+    ]
+  },
+  {
+    "key": "foreign_exchange",
+    "title": "Foreign currency savings and exchange · Service facts",
+    "body": "Multi-currency accounts support holding and converting major foreign currencies including USD, SGD, and EUR. Foreign exchange transactions during banking hours use live board rates. Currency conversions are subject to regulatory reporting requirements for transactions exceeding threshold limits.",
+    "topics": [
+      "forex",
+      "foreign currency",
+      "usd",
+      "exchange rate"
+    ]
+  },
+  {
+    "key": "atm_service",
+    "title": "ATM cash withdrawal and deposit machines · Operational limits",
+    "body": "Daily ATM cash withdrawal limit is Rp 15.000.000 for standard debit cards and Rp 20.000.000 for premium debit cards. Cash deposit machines (CDM) accept valid banknotes in denominations of Rp 50.000 and Rp 100.000 up to 100 notes per insertion.",
+    "topics": [
+      "atm",
+      "cash withdrawal",
+      "cdm"
+    ]
+  },
+  {
+    "key": "digital_onboarding",
+    "title": "Digital account opening · Requirements and process",
+    "body": "New customer digital onboarding is completed through the bank's mobile application using electronic identity card (electronic ID card) scanning, biometric facial verification, and NPWP submission. NextRM guides customer inquiries but account opening must occur in the authorized mobile app.",
+    "topics": [
+      "account opening",
+      "onboarding",
+      "id card",
+      "registration"
+    ]
+  },
+  {
+    "key": "statement_service",
+    "title": "Account e-statements and bank confirmation letters",
+    "body": "Monthly electronic account statements (e-statements) are available for download in mobile and internet banking for up to the past 24 months free of charge. Official printed bank reference letters for visa or audit purposes can be requested through your RM or official branch.",
+    "topics": [
+      "statement",
+      "e-statement",
+      "bank letter",
+      "reference letter"
+    ]
+  },
+  {
+    "key": "corporate_portal",
+    "title": "Internet banking corporate portal · Multi-user access",
+    "body": "The corporate internet banking portal provides business clients with maker-checker approval workflows, bulk payroll uploads, and tax payment integrations. Access permissions are strictly managed by company corporate administrators.",
+    "topics": [
+      "corporate portal",
+      "internet banking",
+      "maker checker",
+      "bulk payment"
+    ]
+  },
+  {
+    "key": "investing_basics",
+    "title": "Starting to invest · Education and boundaries",
+    "body": "Before investing, many people first check three things: an accessible cash buffer for essential spending, any high-interest debt, and the goal and time horizon for the money. Funds pool money into a basket of holdings. Money market funds hold short-term instruments and usually move little, bond funds hold debt and move with interest rates, and equity or index funds hold shares and can fall as well as rise, sometimes sharply. Small regular amounts let a person start with limited money and spread the entry points over time, but returns are never guaranteed and a loss of capital is possible. This is general education. A personal recommendation, product choice or allocation change needs the bank's suitability review with an advisor and is not enabled in this prototype.",
+    "topics": ["invest", "invests", "investing", "investment", "investments", "start investing", "begin", "beginner", "wealth", "build wealth", "building wealth", "etf", "etfs", "index fund", "bond", "bonds", "mutual fund", "fund", "funds", "limited money", "small amount", "first investment", "dividend", "dividends"]
+  },
+  {
+    "key": "portfolio_reading",
+    "title": "Reading your portfolio · Gain, allocation and concentration",
+    "body": "A holding's gain or loss compares its current value with the amount paid in. The 30-day change compares it with its value 30 days earlier, so a fund can show a long-term gain and a recent fall at the same time. Allocation is the share of each asset class in total value: equity funds usually move the most, bond funds less and money market funds the least. Concentration is the share of the largest holding in the total. These figures are a snapshot of linked holdings and can differ from live prices. Reading them is not advice on whether to buy, sell or hold.",
+    "topics": ["portfolio", "performance", "performing", "return", "returns", "gain", "loss", "allocation", "concentration", "diversification", "holdings", "holding", "investment", "investments", "fund", "funds", "doing"]
+  },
+  {
+    "key": "market_moves",
+    "title": "Falling markets · What to know and the bank's market note",
+    "body": "Equity funds rise and fall, and a decline of several percent over a month is common; it does not by itself mean a fund is broken. What matters for any decision is the goal the money is for, how soon it is needed, whether essential spending is covered by cash, and how large the holding is relative to everything else. Selling after a fall turns a paper loss into a realized one, and trying to time the market is unreliable. These are general facts, not a recommendation. Synthetic market note, 16 Oct 2026: Indonesian equities fell 3.4% over five trading days amid global risk aversion, while short-term money market yields were little changed. A personal decision about selling or holding needs the bank's suitability review with an advisor.",
+    "topics": ["drop", "dropped", "drops", "fell", "fall", "falling", "down", "decline", "declined", "market", "markets", "sell", "selling", "losing", "lose", "loss", "volatility", "normal", "crash", "worried", "anxious", "why did"]
+  },
+  {
+    "key": "debt_vs_save_invest",
+    "title": "Debt, saving or investing · Framework",
+    "body": "A common order of priorities is: keep essential bills covered, hold an accessible buffer of about three months of spending, clear high-interest debt, fund near-term goals, and only then consider investing for the long term. Credit card interest is a certain cost that compounds monthly, while investment returns are uncertain and can be negative, so repaying a high-rate balance is a known saving. Keeping some cash after repaying matters, because an emergency can otherwise push the balance back onto the card. These are general principles; the figures for a customer come from the bank's records.",
+    "topics": ["debt", "debts", "pay off", "pay down", "paying off", "paying down", "repay", "repaying", "credit card", "interest", "extra cash", "save or invest", "invest or", "prioritize", "priority", "buffer", "owe"]
+  },
+  {
+    "key": "goal_planning",
+    "title": "Goal planning · How targets and progress are tracked",
+    "body": "Goal progress compares the amount saved so far with the target. The required monthly saving is the remaining amount divided by the monthly contributions left before the target date. The projection adds the planned monthly amount for each remaining month and ignores interest and investment returns. A goal that is behind can be closed by saving more each month, moving the target date or lowering the target. Goals set in the bank app are adjusted by the customer; this assistant does not change them.",
+    "topics": ["goal", "goals", "target", "targets", "on track", "progress", "plan", "house", "travel", "retirement", "emergency fund", "school", "education", "how far"]
+  },
+  {
+    "key": "spending_control",
+    "title": "Spending and recurring payments · Reviewing habits",
+    "body": "Spending can be reviewed by category: compare the last 30 days with the previous 30 days, note which categories rise, and separate essential payments (bills, rent, school fees, insurance) from variable ones (groceries, transport) and discretionary ones (dining, entertainment, subscriptions). Discretionary and recurring items are usually the easiest to adjust. Cancelling a subscription or changing a payment is done with the merchant or in the bank's own menus; the assistant does not cancel or pay anything.",
+    "topics": ["spending", "spend", "overspending", "overspend", "budget", "subscription", "subscriptions", "recurring", "cancel", "cut", "reduce", "expenses", "categories", "money going", "stop spending"]
+  },
+  {
+    "key": "financial_health",
+    "title": "Financial health · Net worth, buffer and savings rate",
+    "body": "Net worth is everything owned in the linked accounts and holdings minus everything owed. Useful companion measures are the cash buffer (months of typical spending held in accessible cash), the savings rate (the share of income left after spending) and the share of income that goes to minimum debt payments. They are shown as separate measures rather than a single score, and they cover only the accounts and holdings linked to the customer's profile.",
+    "topics": ["net worth", "financial health", "health", "wealth", "assets", "liabilities", "buffer", "savings rate", "trend", "trending", "how am i doing", "overall", "finances", "position"]
+  },
+  {
+    "key": "safe_to_spend",
+    "title": "Safe-to-spend estimate · Method and limits",
+    "body": "The safe-to-spend estimate takes the available balance and subtracts typical spending until the next salary date, using the 90-day average and never less than the recurring bills known to fall due in that period. It also shows a 30-day projection that adds the expected salary. It is a planning estimate based on past behavior: unusual purchases, delayed income and price changes are not predicted, and it is not a live balance.",
+    "topics": ["safe to spend", "safely", "safe", "shortfall", "payday", "month end", "enough", "afford", "how much can i spend", "how much can i save", "run out", "this month"]
+  },
+  {
+    "key": "suitability_process",
+    "title": "Investment suitability · How personal recommendations work",
+    "body": "A personal investment recommendation, such as what to buy, sell or hold or how to change an allocation, needs a suitability assessment by an authorized advisor. The customer's goals, time horizon, financial situation, experience and risk profile are reviewed and documented first. Chat style, a recent market move or a large payment do not establish risk tolerance. Personal investment recommendations are not enabled in this prototype. The assistant can explain figures and general concepts, and can help the customer ask a relationship manager to arrange a review through the bank's official channels.",
+    "topics": ["suitability", "recommend", "recommendation", "advisor", "advice", "risk profile", "should i buy", "should i sell", "which fund", "what should i buy", "hold", "sell", "buy", "good time"]
+  }
+]

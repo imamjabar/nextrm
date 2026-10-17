@@ -1,0 +1,6 @@
+"use client";
+import {ArrowUpRight} from 'lucide-react';
+import {useRM,RequestState} from './shared';
+import type {RMDestinations} from '@/lib/rm.generated';
+const destinationFor:Record<string,string>={SAVINGS:'savings',DEPOSIT:'deposit',LOAN:'loan',CARD:'cards',SERVICE:'payments',MERCHANT:'merchant'};
+export function MenuLinks({route,compact=false}:{route?:string;compact?:boolean}){const q=useRM<RMDestinations>('/v1/rm/destinations');const targets=q.data?.destinations.filter(d=>!route||d.key===destinationFor[route]);if(route&&(!destinationFor[route]))return null;return <section className={compact?'bank-request':'rm-primary-section mt-5'} aria-label="Continue in the bank’s separate menu">{!compact&&<h3>Continue in your bank’s app</h3>}<RequestState data={q.data} error={q.error} retry={q.refresh}/>{targets?.map(d=><div key={d.key} className="bank-menu-link"><strong>{d.title}</strong><p className="text-sm">{d.menu_path}</p>{d.href?<a className="button button-quiet" href={d.href} target="_blank" rel="noopener noreferrer">Open bank menu <ArrowUpRight size={15}/></a>:<><button className="button button-quiet" disabled>Bank link not configured</button><small>Use this menu directly in your bank’s app.</small></>}</div>)}{!compact&&<small>Product applications and service actions continue in the bank’s separate menu.</small>}</section>;}

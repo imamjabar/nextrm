@@ -1,0 +1,3 @@
+external_id,source_version,kind,name,locality,need,latitude,longitude,contact_name,contact_role,contact_email,identity_reviewed,contact_allowed,source
+retail-example-01,1,PERSON,Alya Permata,Bekasi,I would like to discuss an emergency savings account,-6.242,106.978,,,alya@example.invalid,true,true,Synthetic opt-in enquiry
+business-example-01,1,ORGANIZATION,CV Loka Mandiri,Bekasi,We need to identify customer payments,-6.257,106.990,Nanda Putri,Director / board contact,nanda@example.invalid,true,true,Synthetic opt-in company enquiry

@@ -1,0 +1,4 @@
+# Optional stage-2 Google provider SDK. No credentials or model calls configured by installation.
+google-genai==2.25.0
+pydantic==2.13.5
+httpx==0.28.1

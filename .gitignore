@@ -1,0 +1,29 @@
+.venv/
+**/node_modules/
+**/.next/
+**/.next-local/
+**/.next-turbo/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+*.egg-info/
+*.tsbuildinfo
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.log
+runtime/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+.DS_Store
+.idea/
+.vscode/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+# Personal working notes (contain keys and requests)
+notes.txt

@@ -1,0 +1,7 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
+    args: ['build', '--build-arg', 'BUILDKIT_INLINE_CACHE=1', '--cache-from', '$_CACHE', '-t', '$_IMAGE', '-t', '$_CACHE', '-f', 'infra/Dockerfile.api', '.']
+images:
+  - '$_IMAGE'
+  - '$_CACHE'
