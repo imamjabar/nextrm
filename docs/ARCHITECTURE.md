@@ -213,6 +213,8 @@ Before any model output is committed or returned, deterministic validators run i
 | **Credential Redaction** | Customer Input | Regular expressions redact passwords, PINs, OTPs, CVVs, and card numbers before persistence or model prompt construction. | Sanitizes text |
 | **Investment Suitability Gate** | Customer Chat | The investment route carries the guardrails `NO_PERSONAL_INVESTMENT_RECOMMENDATION`, `SUITABILITY_REVIEW_VIA_RM` and `NO_RISK_TOLERANCE_INFERENCE`, and the prompt forbids predictions. `breaks_investment_rules` rejects sentences that tell the customer to buy, sell, hold or switch, or that predict a recovery; sentences that state the boundary ("I can't tell you whether you should sell") pass. | Raises `ProviderFailure` |
 
+RM briefs get one bounded repair attempt: when a validator rejects the first generation, Gemini is called once more with the rejection reason; a second rejection fails visibly (HTTP 502) and nothing is shown. Customer chat has no retry, so a customer answer is always a single generation.
+
 ### No Silent Fallback Policy
 NextRM strictly forbids silent degradation or hidden fallback:
 - If a configured Google provider times out, fails validation, or encounters credential errors, the system raises `ProviderFailure` or `ProviderUnavailable`.

@@ -336,6 +336,42 @@ def test_live_structured_generate_success_when_valid(monkeypatch):
     assert data['sources'][0]['id'] == real_src_id
 
 
+def test_brief_gets_one_repair_attempt_that_names_the_rejection(monkeypatch):
+    monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'vertex')
+    monkeypatch.setenv('GOOGLE_CLOUD_PROJECT', 'test-proj')
+    monkeypatch.setenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
+    monkeypatch.setenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    p = dina()
+    source = c.get(f"/v1/rm/parties/{p['id']}/brief", headers=h('usr-maya')).json()['facts'][0]['source']
+
+    class Point:
+        def __init__(self, text):
+            self.text, self.source_ids = text, [source['id']]
+
+    class Brief:
+        def __init__(self, text):
+            self.summary, self.talking_points, self.questions, self.cautions = 'Grounded brief.', [Point(text)], [], []
+
+    rejections = []
+
+    def generate(system, payload, schema, **kw):
+        rejections.append(payload.get('rejected_previous_attempt'))
+        return Brief('She made 987654 requests.' if len(rejections) == 1 else source['content']), {'mode': 'LIVE', 'model': 'gemini-2.5-flash', 'latency_ms': 40}
+
+    from app.services.assistant import engine
+    from app.routers import enrichment
+    monkeypatch.setattr(engine, 'structured_generate', generate)
+    monkeypatch.setattr(enrichment, 'generate_ai_brief', engine.generate_ai_brief)
+    r = c.post(f"/v1/rm/parties/{p['id']}/ai-brief", headers=h('usr-maya'))
+    assert r.status_code == 200, r.text
+    assert r.json()['latency_ms'] == 80 and rejections[0] is None and '987654' in rejections[1]
+
+    rejections.clear()
+    monkeypatch.setattr(engine, 'structured_generate', lambda s, pay, sc, **kw: (rejections.append(1), Brief('Still 987654 requests.'), {'mode': 'LIVE', 'model': 'gemini-2.5-flash', 'latency_ms': 40})[1:])
+    assert c.post(f"/v1/rm/parties/{p['id']}/ai-brief", headers=h('usr-maya')).status_code == 502
+    assert len(rejections) == 2
+
+
 def test_live_draft_validator_and_success(monkeypatch):
     monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'vertex')
     monkeypatch.setenv('GOOGLE_CLOUD_PROJECT', 'test-proj')
