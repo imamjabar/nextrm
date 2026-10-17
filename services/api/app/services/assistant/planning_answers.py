@@ -46,7 +46,7 @@ def card(financial: list, key: str) -> Optional[dict]:
 
 def note_sentence(kb: dict) -> str:
     content = (kb.get('market_moves') or {}).get('content', '')
-    match = re.search(r'Synthetic market note[^.]*\.[^.]*\.', content)
+    match = re.search(r'(?:Synthetic )?[Mm]arket note[^:]*:[^.]*\.[^.]*\.', content)
     return match.group(0) if match else ''
 
 
