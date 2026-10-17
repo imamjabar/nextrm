@@ -14,6 +14,7 @@ from app.services.assistant.engine import (
     respond,
     retrieve_articles,
     validate_numbers_rule,
+    fast_thinking_level,
 )
 from app.services.governance import resolve, DEFAULT
 
@@ -316,6 +317,119 @@ def test_numbers_match_by_value_not_digit_string():
         assert validate_numbers_rule(accepted,'','',snapshot)[0],accepted
     for rejected in ['Transport rose to 115,000,000 IDR.','Commitments are 261666 IDR.','Commitments are 261,666 IDR.']:
         assert not validate_numbers_rule(rejected,'','',snapshot)[0],rejected
+
+@pytest.mark.parametrize('message,answer,card,key,shown', [
+    ('Am I on track for my goals like school fees and an emergency fund?',
+     'Together your two goals need IDR 2,732,142.86 a month against IDR 2,000,000 planned, and the combined shortfall is IDR 8,000,000.',
+     'goal_progress', 'required_monthly_total', 'IDR 2,732,142.86'),
+    ('Are there subscriptions or recurring costs I can cut?',
+     'Your essential bills come to IDR 2,380,000 a month and your three transport apps to IDR 683,333.33.',
+     'recurring', 'essential_total', 'IDR 2,380,000'),
+])
+def test_precomputed_totals_reach_the_model_and_pass_the_number_check(monkeypatch, message, answer, card, key, shown):
+    monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'gemini')
+    monkeypatch.setenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-key-for-test')
+    from app.services.assistant import engine
+    seen = {}
+
+    def mock_structured_generate(system, payload, schema, *, max_output_tokens, contents=None):
+        seen.update({c['key']: c for c in payload['permitted_context']['financial_context']})
+        return ModelAnswer(answer=answer, route='SAVINGS', source_ids=[payload['approved_sources'][0]['id']]), {'mode': 'LIVE', 'model': 'gemini-2.5-flash', 'latency_ms': 50}
+
+    monkeypatch.setattr(engine, 'structured_generate', mock_structured_generate)
+    r = send_in_session(create_session()['id'], message)
+    assert r.status_code == 200, r.text
+    assert r.json()['status'] == 'COMPLETED' and answer in r.json()['answer']
+    assert seen[card]['values'][key] == shown
+
+@pytest.mark.parametrize('message,route,fast,expected', [
+    ('Where is my money going and how can I stop overspending?', 'SAVINGS', 'minimal', 'minimal'),
+    ('How much can I safely spend or save this month without running short?', 'SAVINGS', 'minimal', 'minimal'),
+    ('Am I on track for my goals like school fees and an emergency fund?', 'SAVINGS', 'minimal', 'minimal'),
+    ('Are there subscriptions or recurring costs I can cut?', 'SAVINGS', 'minimal', 'minimal'),
+    ('How is my overall financial health and net worth trending?', 'SAVINGS', 'minimal', 'minimal'),
+    ('What product or action should I take next to improve my finances?', 'SAVINGS', 'minimal', 'minimal'),
+    ('Should I pay off my credit card balance early?', 'SAVINGS', 'minimal', None),
+    ('Tell me about savings accounts', 'SAVINGS', 'minimal', None),
+    ('Is my portfolio performing well and what should I do next?', 'WEALTH', 'minimal', None),
+    ('Why did my investments drop, is this normal, and should I sell?', 'WEALTH', 'minimal', None),
+    ('Where is my money going?', 'PRIVACY', 'minimal', None),
+    ('Where is my money going and how can I stop overspending?', 'SAVINGS', '', None),
+])
+def test_only_measured_planning_intents_use_the_fast_thinking_level(monkeypatch, message, route, fast, expected):
+    monkeypatch.setenv('GEMINI_THINKING_LEVEL_FAST', fast)
+    assert fast_thinking_level(message, route) == expected
+
+def test_fast_level_reaches_the_model_and_is_recorded_on_the_turn(monkeypatch):
+    monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'gemini')
+    monkeypatch.setenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-key-for-test')
+    monkeypatch.setenv('GEMINI_THINKING_LEVEL', 'low')
+    monkeypatch.setenv('GEMINI_THINKING_LEVEL_FAST', 'minimal')
+    monkeypatch.delenv('GEMINI_THINKING_BUDGET', raising=False)
+    from app.services.assistant import engine
+    requested = []
+
+    def mock_structured_generate(system, payload, schema, *, max_output_tokens, contents=None, thinking_level=None):
+        requested.append(thinking_level)
+        wealth = 'portfolio' in payload['untrusted_customer_message']
+        answer = "I cannot tell you whether to buy, sell or hold because that is a personal recommendation. A personal recommendation needs the bank's suitability review with an advisor." if wealth else 'Dining and transport are your largest spending categories this period.'
+        return ModelAnswer(answer=answer, route='WEALTH' if wealth else 'SAVINGS', source_ids=[payload['approved_sources'][0]['id']]), {'mode': 'LIVE', 'model': 'gemini-2.5-flash', 'latency_ms': 50}
+
+    monkeypatch.setattr(engine, 'structured_generate', mock_structured_generate)
+    spending = send_in_session(create_session()['id'], 'Where is my money going and how can I stop overspending?').json()
+    wealth = send_in_session(create_session()['id'], 'Is my portfolio performing well and what should I do next?').json()
+    assert requested == ['minimal', 'low']
+    assert (spending['status'], spending['thinking_level']) == ('COMPLETED', 'minimal')
+    assert (wealth['status'], wealth['thinking_level']) == ('COMPLETED', 'low')
+def test_cascade_retries_with_low_when_minimal_fails_validation(monkeypatch):
+    monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'gemini')
+    monkeypatch.setenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-key-for-test')
+    monkeypatch.setenv('GEMINI_THINKING_LEVEL', 'minimal')
+    monkeypatch.setenv('GEMINI_THINKING_LEVEL_FALLBACK', 'low')
+    monkeypatch.delenv('GEMINI_THINKING_BUDGET', raising=False)
+    monkeypatch.delenv('GEMINI_THINKING_LEVEL_FAST', raising=False)
+    from app.services.assistant import engine
+    calls = []
+
+    def mock_structured_generate(system, payload, schema, *, max_output_tokens, contents=None, thinking_level=None):
+        calls.append(thinking_level)
+        if thinking_level == 'minimal':
+            ans = 'Your transport costs were IDR 999,999,999.'  # Unsupported number -> validation fails
+        else:
+            ans = 'Dining and transport are your largest spending categories this period.'
+        return ModelAnswer(answer=ans, route='SAVINGS', source_ids=[payload['approved_sources'][0]['id']]), {'mode': 'LIVE', 'model': 'gemini-2.5-flash', 'latency_ms': 50}
+
+    monkeypatch.setattr(engine, 'structured_generate', mock_structured_generate)
+    turn = send_in_session(create_session()['id'], 'Where is my money going and how can I stop overspending?').json()
+    assert turn['status'] == 'COMPLETED'
+    assert turn['thinking_level'] == 'minimal->low'
+    assert calls == ['minimal', 'low']
+    assert 'Dining and transport' in turn['answer']
+
+def test_cascade_returns_minimal_when_first_attempt_succeeds(monkeypatch):
+    monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'gemini')
+    monkeypatch.setenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-key-for-test')
+    monkeypatch.setenv('GEMINI_THINKING_LEVEL', 'minimal')
+    monkeypatch.setenv('GEMINI_THINKING_LEVEL_FALLBACK', 'low')
+    monkeypatch.delenv('GEMINI_THINKING_BUDGET', raising=False)
+    monkeypatch.delenv('GEMINI_THINKING_LEVEL_FAST', raising=False)
+    from app.services.assistant import engine
+    calls = []
+
+    def mock_structured_generate(system, payload, schema, *, max_output_tokens, contents=None, thinking_level=None):
+        calls.append(thinking_level)
+        return ModelAnswer(answer='Dining and transport are your largest spending categories this period.', route='SAVINGS', source_ids=[payload['approved_sources'][0]['id']]), {'mode': 'LIVE', 'model': 'gemini-2.5-flash', 'latency_ms': 50}
+
+    monkeypatch.setattr(engine, 'structured_generate', mock_structured_generate)
+    turn = send_in_session(create_session()['id'], 'Where is my money going and how can I stop overspending?').json()
+    assert turn['status'] == 'COMPLETED'
+    assert turn['thinking_level'] == 'minimal'
+    assert calls == ['minimal']
+
 
 def test_follow_up_suggestions_drop_numbers_links_and_promises(monkeypatch):
     monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'gemini')

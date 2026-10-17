@@ -12,11 +12,12 @@ MONEY_KEYS = frozenset({
     'projected_30d_balance', 'monthly_surplus_estimate',
     'target_amount', 'saved_amount', 'remaining_amount', 'required_monthly', 'planned_monthly', 'projected_amount',
     'shortfall_amount', 'extra_monthly_needed', 'planned_total_monthly',
+    'required_monthly_total', 'extra_monthly_needed_total', 'shortfall_total', 'remaining_total', 'surplus_after_planned_goals', 'surplus_after_required_goals',
     'outstanding_total', 'monthly_interest_cost', 'minimum_payment_total', 'monthly_interest_earned_on_same_amount',
     'monthly_net_benefit_of_repaying', 'liquid_after_repayment', 'interest_paid_at_minimum',
     'total_value', 'total_cost', 'gain_loss', 'change_30d',
     'assets_total', 'liquid_assets', 'deposit_assets', 'investment_assets', 'liabilities_total', 'net_worth', 'assets_change_30d',
-    'discretionary_total',
+    'discretionary_total', 'essential_total', 'variable_total',
 })
 DATE_KEYS = frozenset({'maturity_date', 'target_date', 'payday', 'as_of'})
 

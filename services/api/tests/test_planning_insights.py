@@ -29,6 +29,35 @@ def test_goal_progress_matches_hand_calculation_for_each_goal():
     assert [r['status'] for r in goal['rows']] == ['Behind', 'Behind'] and goal['rows'][1]['required_monthly'] == 'IDR 857,142.86'
 
 
+def test_goal_totals_and_per_goal_extras_are_calculated_for_the_model_to_quote():
+    with SessionLocal() as db:
+        goal = cards(db)['goal_progress']
+    v, emergency = goal['values'], goal['rows'][1]
+    assert (emergency['remaining'], emergency['months_left'], emergency['extra_monthly_needed']) == ('IDR 12,000,000', '14', 'IDR 357,142.86')
+    assert (v['required_monthly_total'], v['extra_monthly_needed_total']) == ('2732142.86', '732142.86')
+    assert (v['shortfall_total'], v['remaining_total']) == ('8000000.00', '27000000.00')
+    assert (v['surplus_after_planned_goals'], v['surplus_after_required_goals']) == ('931666.67', '199523.81')
+    assert display_values(goal)['required_monthly_total'] == 'IDR 2,732,142.86'
+
+
+def test_goal_headroom_keeps_its_sign_when_the_goals_outgrow_the_surplus():
+    with SessionLocal() as db:
+        db.query(BankGoal).filter_by(name='Dana Darurat').update({'target_amount': Decimal('60000000.00')})
+        db.commit()
+        v = cards(db)['goal_progress']['values']
+    assert v['required_monthly_total'] == '5946428.57'
+    assert v['surplus_after_planned_goals'] == '931666.67' and v['surplus_after_required_goals'] == '-3014761.90'
+
+
+def test_recurring_subtotals_add_up_to_the_monthly_estimates_in_the_rows():
+    with SessionLocal() as db:
+        recurring = cards(db)['recurring']
+    v = recurring['values']
+    assert (v['essential_total'], v['variable_total'], v['discretionary_total']) == ('2380000.00', '2483333.33', '705000.00')
+    transport = [r for r in recurring['rows'] if r['category'] == 'Transport']
+    assert len(transport) == 3 and {r['category_monthly_total'] for r in transport} == {'IDR 683,333.33'}
+
+
 def test_goal_is_on_track_once_the_plan_covers_the_requirement():
     with SessionLocal() as db:
         db.query(BankGoal).filter_by(name='Dana Pendidikan Anak').update({'monthly_plan': Decimal('2000000.00')})
@@ -57,6 +86,7 @@ def test_portfolio_keeps_the_sign_of_losses_and_allocation_adds_up():
     assert abs(sum(Decimal(v[k]) for k in ('equity_percent', 'bond_percent', 'money_market_percent')) - 100) <= Decimal('0.02')
     shown = display_values(portfolio)
     assert shown['gain_loss_percent'] == '-0.96%' and shown['total_value'] == 'IDR 10,399,000' and shown['as_of'] == '17 Oct 2026'
+    assert next(r for r in portfolio['rows'] if r['label'] == 'Reksa Dana Indeks IDX30')['gain_loss'] == 'IDR -175,000'
 
 
 def test_net_worth_subtracts_liabilities_and_omits_unknown_history():

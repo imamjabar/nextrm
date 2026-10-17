@@ -154,7 +154,7 @@ Tests run on PostgreSQL, the production engine. A run applies the Alembic migrat
 
 ```bash
 GCP_PROJECT_ID=<project> GCP_REGION=asia-southeast1 GEMINI_MODEL=gemini-3.5-flash \
-GEMINI_LOCATION=asia-southeast1 GEMINI_THINKING_LEVEL=low \
+GEMINI_LOCATION=asia-southeast1 GEMINI_THINKING_LEVEL=minimal GEMINI_THINKING_LEVEL_FALLBACK=low \
 GOOGLE_MAPS_BROWSER_KEY=<maps-js-key> ./scripts/gcp/deploy-demo.sh
 ```
 

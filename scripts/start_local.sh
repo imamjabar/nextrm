@@ -24,7 +24,8 @@ if [[ "$NEXTRM_AI_PROVIDER" == "vertex" ]]; then
   export GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT:-${GCP_PROJECT_ID:-$(gcloud config get-value project 2>/dev/null || true)}}"
   export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-asia-southeast1}"
   export GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.5-flash}"
-  export GEMINI_THINKING_LEVEL="${GEMINI_THINKING_LEVEL:-low}"
+  export GEMINI_THINKING_LEVEL="${GEMINI_THINKING_LEVEL:-minimal}"
+  export GEMINI_THINKING_LEVEL_FALLBACK="${GEMINI_THINKING_LEVEL_FALLBACK:-low}"
   if [[ -z "$GOOGLE_CLOUD_PROJECT" ]]; then
     echo 'Live Gemini needs GOOGLE_CLOUD_PROJECT (or gcloud config project) and `gcloud auth application-default login`. For an offline SIMULATED run, set NEXTRM_AI_PROVIDER=local explicitly.' >&2; exit 1
   fi

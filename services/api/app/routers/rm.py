@@ -261,6 +261,7 @@ def chat_turn(party_id:str,req:RMChatRequest,db:Session=Depends(get_db),user:Cur
     out_payload={'source_ids':[x['id'] for x in answer.sources],'claims':answer.claims,'signal_id':signalid,'message_source_id':source.id,'model_calls':0 if provider=='local' else 1,'schema_version':'rm-turn-v2','prompt_version':PROMPT_VERSION,'context_source_id':context_source.id if context_source else None,'context_source_version':context_source.version if context_source else None,'context_source_hash':context_source.content_hash if context_source else None,'financial_source_refs':[{'id':x['source']['id'],'version':x['source']['version'],'hash':x['source']['hash']} for x in ctx.get('financial_context',[]) if x.get('source') and x['status']!='UNAVAILABLE'],'governance':governance_decision,'session_id':req.session_id,'signal_policy_version':'ENGAGEMENT-4','capture_policy_version':capture_policy(user)['version'],'capture_method':'INSTITUTION_POLICY' if req.share_with_rm is None else 'EXPLICIT_LEGACY_CHOICE','sharing_status':sharing_status}
     if getattr(answer,'route_mismatch',None):out_payload['route_mismatch']=answer.route_mismatch
     if answer.suggestions:out_payload['suggestions']=answer.suggestions
+    if answer.thinking_level:out_payload['thinking_level']=answer.thinking_level
     t.answer=answer.text;t.route=answer.route;t.status='COMPLETED';t.tools_json=j(answer.tools);t.output_json=j(out_payload)
     db.commit();t.latency_ms=max(1,int((time.perf_counter()-start)*1000));db.commit();return turn_data(db,t)
 

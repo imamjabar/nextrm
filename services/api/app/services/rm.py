@@ -93,7 +93,7 @@ def turn_data(db,t):
         source=db.query(Source).filter_by(id=id,tenant_id=t.tenant_id).first()
         if source and source.kind!='APPROVED_KNOWLEDGE' and (source.party_id!=t.party_id or source.kind not in {'BANK_DATA_SUMMARY','AUTHORIZED_FINANCIAL_SUMMARY'}):source=None
         if source:sources.append(source_data(source))
-    return {'id':t.id,'message':t.message,'answer':t.answer,'status':t.status,'route':t.route,'mode':t.mode,'model':t.model,'created_at':stamp(t.created_at),'latency_ms':t.latency_ms,'sources':sources,'tools':json.loads(t.tools_json),'signal_id':out.get('signal_id'),'error_code':t.error_code,'governance':out.get('governance'),'sharing_status':out.get('sharing_status','SHARED' if out.get('signal_id') else 'NOT_RECORDED'),'suggestions':out.get('suggestions',[])}
+    return {'id':t.id,'message':t.message,'answer':t.answer,'status':t.status,'route':t.route,'mode':t.mode,'model':t.model,'created_at':stamp(t.created_at),'latency_ms':t.latency_ms,'sources':sources,'tools':json.loads(t.tools_json),'signal_id':out.get('signal_id'),'error_code':t.error_code,'governance':out.get('governance'),'sharing_status':out.get('sharing_status','SHARED' if out.get('signal_id') else 'NOT_RECORDED'),'suggestions':out.get('suggestions',[]),'thinking_level':out.get('thinking_level')}
 
 
 def priority_key(signal):

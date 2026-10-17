@@ -52,7 +52,9 @@ else:
         if not project:
             sys.exit('Set GOOGLE_CLOUD_PROJECT or GCP_PROJECT_ID for --live.')
         env.update(NEXTRM_AI_PROVIDER='vertex', GOOGLE_CLOUD_PROJECT=project, GOOGLE_CLOUD_LOCATION=os.getenv('GOOGLE_CLOUD_LOCATION', 'asia-southeast1'),
-                   GEMINI_MODEL=os.getenv('GEMINI_MODEL', 'gemini-3.5-flash'), GEMINI_THINKING_LEVEL=os.getenv('GEMINI_THINKING_LEVEL', 'low'))
+                   GEMINI_MODEL=os.getenv('GEMINI_MODEL', 'gemini-3.5-flash'),
+                   GEMINI_THINKING_LEVEL=os.getenv('GEMINI_THINKING_LEVEL', 'minimal'),
+                   GEMINI_THINKING_LEVEL_FALLBACK=os.getenv('GEMINI_THINKING_LEVEL_FALLBACK', 'low'))
     else:
         env['NEXTRM_AI_PROVIDER'] = 'local'
     os.environ.update(env)
@@ -114,7 +116,7 @@ for number, question, route, musts in CASES:
         problems += [f'advice pattern {p}' for p in advice_violations(text)]
         if not turn.get('suggestions'):
             problems.append('no follow-up suggestions')
-    print(f"{'PASS' if not problems else 'FAIL'}  Q{number}  {turn.get('mode')}  {turn.get('latency_ms')} ms  route={turn.get('route')}  {question}")
+    print(f"{'PASS' if not problems else 'FAIL'}  Q{number}  {turn.get('mode')}  {turn.get('latency_ms')} ms  route={turn.get('route')}  think={turn.get('thinking_level')}  {question}")
     if problems or args.show:
         print('      ' + (turn.get('answer') or str(turn)).replace('\n', '\n      '))
         print('      suggestions:', turn.get('suggestions'))

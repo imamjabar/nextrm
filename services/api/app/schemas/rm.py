@@ -42,7 +42,7 @@ class RMTool(BaseModel):
     name:str;duration_ms:int;status:str;scope:str
 class RMTurn(BaseModel):
     id:str;message:str;answer:str;status:str;route:str;mode:str;model:str;created_at:str;latency_ms:int;sources:list[RMSource];tools:list[RMTool];signal_id:str|None;error_code:str|None
-    sharing_status:str='NOT_RECORDED';governance:dict|None=None;suggestions:list[str]=Field(default_factory=list)
+    sharing_status:str='NOT_RECORDED';governance:dict|None=None;suggestions:list[str]=Field(default_factory=list);thinking_level:str|None=None
 class RMConversation(BaseModel):
     id:str;party:RMParty;institution_name:str;version:int;turns:list[RMTurn];provider:str;provider_ready:bool
     older_cursor:str|None=None
@@ -65,7 +65,7 @@ class RMHome(BaseModel):
     customers:int;prospects:int;open_signals:int;open_journeys:int;signals:list[RMSignal];prospect_preview:list[RMProspect];provider:str;provider_ready:bool;data_mode:str;quality_access:bool;open_followups:int=0
 class RMTrace(BaseModel):
     id:str;party_id:str;name:str;route:str;status:str;mode:str;model:str;latency_ms:int;at:str;message:str|None;answer:str|None;tools:list[RMTool];sources:list[RMSource];error_code:str|None;content_access:bool
-    context_source_id:str|None=None;context_source_version:int|None=None;context_source_hash:str|None=None;prompt_version:str='UNKNOWN'
+    context_source_id:str|None=None;context_source_version:int|None=None;context_source_hash:str|None=None;prompt_version:str='UNKNOWN';thinking_level:str|None=None
     governance:dict|None=None
 class RMMetric(BaseModel):
     label:str;numerator:int;denominator:int;unit:str;method:str

@@ -209,16 +209,21 @@ def evaluate_goals(features: dict[str, Any], facts: dict[str, Any]) -> list[dict
 def goal_progress_card(features: dict[str, Any], evaluated: list[dict[str, Any]], source: dict, cur: str) -> dict[str, Any]:
     if not evaluated:
         return card('goal_progress', 'UNAVAILABLE', {}, UNAVAILABLE_TEXT['goal_progress'], source, cur)
-    rows = [{'label': g['name'], 'target': money_text(g['target'], cur), 'saved': money_text(g['saved'], cur), 'progress_percent': percent_text(g['progress']),
-             'target_date': date_text(g['target_date'].isoformat()), 'required_monthly': money_text(g['required'], cur),
-             'planned_monthly': money_text(g['plan'], cur), 'shortfall': money_text(g['shortfall'], cur), 'status': STATUS_LABELS[g['status']]} for g in evaluated]
+    rows = [{'label': g['name'], 'target': money_text(g['target'], cur), 'saved': money_text(g['saved'], cur), 'remaining': money_text(g['remaining'], cur),
+             'progress_percent': percent_text(g['progress']), 'target_date': date_text(g['target_date'].isoformat()), 'months_left': str(g['left']),
+             'required_monthly': money_text(g['required'], cur), 'planned_monthly': money_text(g['plan'], cur),
+             'extra_monthly_needed': money_text(g['extra'], cur), 'shortfall': money_text(g['shortfall'], cur), 'status': STATUS_LABELS[g['status']]} for g in evaluated]
     lead = next((g for g in evaluated if g['status'] != 'COMPLETE'), evaluated[0])
+    total = lambda key: sum((g[key] for g in evaluated), ZERO)
+    surplus = features['avg_monthly_income'] - features['monthly_outflow']
     values = {'goal_name': lead['name'], 'target_amount': fixed(lead['target']), 'saved_amount': fixed(lead['saved']), 'remaining_amount': fixed(lead['remaining']),
               'progress_percent': fixed(lead['progress']), 'target_date': lead['target_date'].isoformat(), 'months_left': str(lead['left']),
               'required_monthly': fixed(lead['required']), 'planned_monthly': fixed(lead['plan']), 'projected_amount': fixed(lead['projected']),
               'shortfall_amount': fixed(lead['shortfall']), 'extra_monthly_needed': fixed(lead['extra']), 'goal_status': lead['status'],
-              'goals_count': str(len(evaluated)), 'planned_total_monthly': fixed(sum((g['plan'] for g in evaluated), ZERO)),
-              'monthly_surplus_estimate': fixed(features['avg_monthly_income'] - features['monthly_outflow'])}
+              'goals_count': str(len(evaluated)), 'planned_total_monthly': fixed(total('plan')), 'monthly_surplus_estimate': fixed(surplus),
+              'required_monthly_total': fixed(total('required')), 'extra_monthly_needed_total': fixed(total('extra')), 'shortfall_total': fixed(total('shortfall')),
+              'remaining_total': fixed(total('remaining')), 'surplus_after_planned_goals': fixed(surplus - total('plan')),
+              'surplus_after_required_goals': fixed(surplus - total('required'))}
     if lead['needed'] is not None:
         values['months_needed_at_plan'] = str(lead['needed'])
     verb = {'COMPLETE': 'is fully funded', 'ON_TRACK': 'is on track at the current monthly plan', 'BEHIND': 'is behind at the current monthly plan'}[lead['status']]
@@ -286,6 +291,7 @@ def portfolio_card(facts: dict[str, Any], source: dict, cur: str) -> dict[str, A
     for h in sorted(holdings, key=lambda h: h['value'], reverse=True):
         row = {'label': h['instrument'], 'asset_class': CLASS_LABELS.get(h['asset_class'], h['asset_class']), 'value': money_text(h['value'], cur),
                'share_percent': percent_text(ratio_percent(h['value'], total)), 'cost': money_text(h['cost'], cur),
+               'gain_loss': money_text(h['value'] - h['cost'], cur),
                'gain_loss_percent': percent_text(ratio_percent(h['value'] - h['cost'], h['cost']), signed=True)}
         if h['value_30d_ago']:
             row['change_30d_percent'] = percent_text(move(h), signed=True)

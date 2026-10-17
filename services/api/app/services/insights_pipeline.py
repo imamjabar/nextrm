@@ -538,14 +538,20 @@ def insight_cards(db: Session, party: Party, as_of: Optional[Any] = None) -> lis
     rec_count = len(features['recurring_bills'])
     recurring_total = features['total_recurring_monthly']
     kind_of = lambda category: 'Discretionary' if (category or '').lower() in DISCRETIONARY_CATEGORIES else 'Essential' if (category or '').lower() in ESSENTIAL_CATEGORIES else 'Variable'
+    category_total: dict[str, Decimal] = {}
+    for b in features['recurring_bills']:
+        key = (b['category'] or '').lower()
+        category_total[key] = category_total.get(key, Decimal('0.00')) + b['monthly_estimate']
+    kind_total = lambda kind: format(sum((b['monthly_estimate'] for b in features['recurring_bills'] if kind_of(b['category']) == kind), Decimal('0.00')), '.2f')
     recurring_rows = [
         {'label': b['merchant'], 'category': b['category'], 'type': kind_of(b['category']), 'monthly_estimate': money_text(b['monthly_estimate'], cur),
+         'category_monthly_total': money_text(category_total[(b['category'] or '').lower()], cur),
          'typical_amount': money_text(b['amount'], cur), 'times_90d': str(b['count_90']), 'next_expected': date_text(b['next_expected_date'].isoformat())}
         for b in sorted(features['recurring_bills'], key=lambda b: b['monthly_estimate'], reverse=True)[:12]
     ]
     recurring_values = {
         'amount': format(recurring_total, '.2f'), 'merchant_count': str(rec_count),
-        'discretionary_total': format(sum((b['monthly_estimate'] for b in features['recurring_bills'] if kind_of(b['category']) == 'Discretionary'), Decimal('0.00')), '.2f'),
+        'discretionary_total': kind_total('Discretionary'), 'essential_total': kind_total('Essential'), 'variable_total': kind_total('Variable'),
     }
     recurring_card = {
         'key': 'recurring',

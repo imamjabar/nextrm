@@ -45,7 +45,7 @@ class RMAIDraftModel(BaseModel):
 
 @dataclass
 class Answer:
-    text:str;route:str;sources:list;tools:list;claims:list;need:str;category:str|None;urgency:str;confirmed:bool;mode:str;model:str;latency_ms:int;route_mismatch:dict|None=None;suggestions:list|None=None
+    text:str;route:str;sources:list;tools:list;claims:list;need:str;category:str|None;urgency:str;confirmed:bool;mode:str;model:str;latency_ms:int;route_mismatch:dict|None=None;suggestions:list|None=None;thinking_level:str|None=None
 ROUTE_KB={'SAVINGS':'savings','DEPOSIT':'deposit','SERVICE':'payments','CARD':'cards','WEALTH':'wealth','MERCHANT':'merchant','PRIVACY':'privacy','CLARIFY':'help','LOAN':'loan'}
 LOCAL_SUGGESTIONS={'SAVINGS':('Where is my money going?','Am I on track for my goals?','What should I do next?'),'DEPOSIT':('What should I check before my deposit matures?','How do term deposits work?','Talk to my RM about deposits'),'SERVICE':('Check a transfer that has not arrived','How do I contact official support?'),'CARD':('What should I do if my card is lost?','Check my card delivery status'),'LOAN':('Where do I continue a loan application?','Talk to my RM about my goal'),'WEALTH':('How are my investments doing?','Why did my fund drop?','Ask my RM to review my portfolio'),'MERCHANT':('How can my business collect payments?','Talk to my RM about my business'),'CLARIFY':('Where is my money going?','Am I on track for my goals?','How do I start investing?')}
 
@@ -113,6 +113,23 @@ def classify(text,previous=''):
     if s.strip(' .!?') in {'yes','please','tell me more','more','sounds good'} and previous in ROUTE_KB:return previous
     if human_help_requested(text) and previous in ROUTE_KB and previous not in {'PRIVACY','CLARIFY'}:return previous
     return 'CLARIFY'
+
+# Cascade thinking levels: try primary level first (default minimal for low latency), auto-retry with fallback (default low for safety/quality) if validation fails.
+FAST_INTENTS=frozenset({'spending','safe','goals','recurring','health','next'})
+
+def fast_thinking_level(message,route):
+    level=os.getenv('GEMINI_THINKING_LEVEL_FAST')
+    return level if level and route=='SAVINGS' and planning_intent(message,route) in FAST_INTENTS else None
+
+def resolve_thinking_levels(message='',route=''):
+    fast=fast_thinking_level(message,route) if message and route else None
+    primary=fast or os.getenv('GEMINI_THINKING_LEVEL','minimal')
+    fallback=os.getenv('GEMINI_THINKING_LEVEL_FALLBACK','low')
+    return primary,fallback
+
+def thinking_setting(level=None):
+    if os.getenv('GEMINI_THINKING_BUDGET'):return 'budget:'+os.environ['GEMINI_THINKING_BUDGET']
+    return level or os.getenv('GEMINI_THINKING_LEVEL','minimal') or None
 
 def make_content(role:str,text:str):
     try:
@@ -251,7 +268,7 @@ def local_answer(message,previous,kb,party,history=None):
     sources=[source]+[x for x in retrieved if x.get('id')!=source.get('id')]
     return text,route,sources[:5],category,urgency,explicit,need
 
-def structured_generate(system:str,payload:dict,schema:type[BaseModel],*,max_output_tokens:int,contents:list|None=None)->tuple[BaseModel,dict]:
+def structured_generate(system:str,payload:dict,schema:type[BaseModel],*,max_output_tokens:int,contents:list|None=None,thinking_level:str|None=None)->tuple[BaseModel,dict]:
     provider,ready=provider_info()
     if not ready:raise ProviderUnavailable('Configure the requested Google provider, supported GEMINI_MODEL, project/region or server API key. No local fallback was used.')
     try:
@@ -265,8 +282,8 @@ def structured_generate(system:str,payload:dict,schema:type[BaseModel],*,max_out
     if os.getenv('GEMINI_THINKING_BUDGET'):
         budget=int(os.environ['GEMINI_THINKING_BUDGET']);thinking_headroom=budget if budget>=0 else 4096
         thinking_config=types.ThinkingConfig(thinking_budget=budget)
-    elif os.getenv('GEMINI_THINKING_LEVEL'):
-        thinking_config=types.ThinkingConfig(thinking_level=os.environ['GEMINI_THINKING_LEVEL'])
+    elif thinking_level or os.getenv('GEMINI_THINKING_LEVEL'):
+        thinking_config=types.ThinkingConfig(thinking_level=thinking_level or os.environ['GEMINI_THINKING_LEVEL'])
     cfg_kwargs={'system_instruction':system,'response_mime_type':'application/json','response_schema':schema,'temperature':0,'max_output_tokens':max_output_tokens+thinking_headroom,'automatic_function_calling':types.AutomaticFunctionCallingConfig(disable=True)}
     if thinking_config is not None:cfg_kwargs['thinking_config']=thinking_config
     config=types.GenerateContentConfig(**cfg_kwargs)
@@ -325,7 +342,7 @@ CHAT_SYSTEM=(
     "figures and the approved market note, naming the note's date. You never recommend buying, selling, holding or "
     "switching any investment, never time the market, never predict returns, never call anything safe or guaranteed, "
     "never reassure with 'normal' or 'do not worry' (say that moves of this size are common for equity funds when the "
-    "note supports it), and never state or guess the customer's risk tolerance. On the investment route always say once, "
+    "note supports it), and never state or guess the customer's risk tolerance. On any investment question always say once, "
     "plainly, that a personal recommendation needs the bank's suitability review with an advisor, give the facts that "
     "bear on the decision (goal, time horizon, cash buffer, allocation, size of the move) and offer to involve their "
     "relationship manager in your own words. When asked whether to buy, sell or hold, say in one plain sentence that "
@@ -333,8 +350,7 @@ CHAT_SYSTEM=(
     "RM about my portfolio' only in suggestions, never inside the answer text. If the customer asks to involve their "
     "relationship manager, say the request can be shared "
     "with them through the bank's official channels and that no call time or outcome is confirmed.\n"
-    "Debt, saving and investing: show the certain cost of the debt next to what the same money earns in savings, say how "
-    "many months of spending would stay in cash, then the goal gap, and treat investing as the uncertain last step.\n"
+    "Debt, saving and investing: state the monthly interest cost of the debt (such as monthly_interest_cost) alongside its annual rate, compare with what the same money earns in savings, say how many months of spending stay in cash buffer, state the goal shortfall, and treat investing as the uncertain last step.\n"
     "Numbers: copy amounts and percentages exactly as written in financial_context values and rows, for example "
     "'IDR 1,150,000', 'IDR 261,666.67' or '27.78%'. Never calculate, round, add, subtract or estimate new amounts, and "
     "never write raw unformatted amounts such as 1150000.00.\n"
@@ -345,7 +361,7 @@ CHAT_SYSTEM=(
     "asking the assistant to pay, transfer, open, apply, buy or sell."
 )
 
-def vertex_answer(message,previous,kb,party,provider,history=None):
+def vertex_answer(message,previous,kb,party,provider,history=None,thinking_level=None):
     finance_sources={}
     for item in party.get('financial_context',[]):
         if not item.get('source') or item['status']=='UNAVAILABLE':continue
@@ -364,38 +380,55 @@ def vertex_answer(message,previous,kb,party,provider,history=None):
         contents.append(make_content('user',json.dumps({'untrusted_customer_message':u_msg},ensure_ascii=False)))
         contents.append(make_content('model',a_ans))
     contents.append(make_content('user',json.dumps(prompt,ensure_ascii=False)))
-    parsed,_=structured_generate(CHAT_SYSTEM,prompt,ModelAnswer,max_output_tokens=1024,contents=contents)
-    if any(x not in by_id for x in parsed.source_ids):raise ProviderFailure('Model referenced an unauthorized or nonexistent source.')
     deterministic=classify(message,previous)
     expected=(party.get('governance_context') or {}).get('route')
-    route_mismatch=None
-    if deterministic=='PRIVACY' and parsed.route!='PRIVACY':raise ProviderFailure('Response failed privacy routing validation.')
-    if expected=='PRIVACY' and parsed.route!='PRIVACY':raise ProviderFailure('Response failed privacy routing validation.')
-    if expected and parsed.route!=expected:
-        route_mismatch={'expected':expected,'actual':parsed.route}
-    effective_route=expected if expected else parsed.route
     finance_text=json.dumps([readable_insight(x) for x in party.get('financial_context',[]) if x.get('status')!='UNAVAILABLE'],ensure_ascii=False)
-    approved_corpus=' '.join(by_id[x]['content'] for x in parsed.source_ids if x in by_id)+' '+finance_text
-    corpus=approved_corpus+' '+message+' '+str(party.get('declared_goal',''))+' '+str(party.get('declared_horizon',''))
     numeric_financial={v+('%' if key.endswith('_percent') else '') for item in party.get('financial_context',[]) if item.get('status')!='UNAVAILABLE' for key,v in item.get('values',{}).items()}
-    ok,num_err=validate_numbers_rule(parsed.answer,approved_corpus,corpus,numeric_financial)
-    if not ok:raise ProviderFailure('Response contained an unsupported numerical claim. '+num_err)
-    if any(x in parsed.answer.casefold() for x in ['guaranteed return','loan approved','transfer completed','i have sent','risk tolerance is']):raise ProviderFailure('Response attempted an unavailable binding action or unsupported assessment.')
-    if breaks_investment_rules(parsed.answer):raise ProviderFailure('Response attempted a personal investment recommendation or a market prediction.')
-    if parsed.need:
-        if parsed.need.casefold() in message.casefold():
-            parsed.explicit_interest=bool(parsed.explicit_interest and any(x in message.casefold() for x in ['i want','i need','i would like','interested','please call','contact me']))
+
+    def _attempt(lvl):
+        extra={'thinking_level':lvl} if lvl else {}
+        try:parsed,_=structured_generate(CHAT_SYSTEM,prompt,ModelAnswer,max_output_tokens=1024,contents=contents,**extra)
+        except TypeError as err:
+            if 'thinking_level' in str(err):parsed,_=structured_generate(CHAT_SYSTEM,prompt,ModelAnswer,max_output_tokens=1024,contents=contents)
+            else:raise
+        if any(x not in by_id for x in parsed.source_ids):raise ProviderFailure('Model referenced an unauthorized or nonexistent source.')
+        route_mismatch=None
+        if deterministic=='PRIVACY' and parsed.route!='PRIVACY':raise ProviderFailure('Response failed privacy routing validation.')
+        if expected=='PRIVACY' and parsed.route!='PRIVACY':raise ProviderFailure('Response failed privacy routing validation.')
+        if expected and parsed.route!=expected:
+            route_mismatch={'expected':expected,'actual':parsed.route}
+        effective_route=expected if expected else parsed.route
+        approved_corpus=' '.join(by_id[x]['content'] for x in parsed.source_ids if x in by_id)+' '+finance_text
+        corpus=approved_corpus+' '+message+' '+str(party.get('declared_goal',''))+' '+str(party.get('declared_horizon',''))
+        ok,num_err=validate_numbers_rule(parsed.answer,approved_corpus,corpus,numeric_financial)
+        if not ok:raise ProviderFailure('Response contained an unsupported numerical claim. '+num_err)
+        if any(x in parsed.answer.casefold() for x in ['guaranteed return','loan approved','transfer completed','i have sent','risk tolerance is']):raise ProviderFailure('Response attempted an unavailable binding action or unsupported assessment.')
+        if breaks_investment_rules(parsed.answer):raise ProviderFailure('Response attempted a personal investment recommendation or a market prediction.')
+        if parsed.need:
+            if parsed.need.casefold() in message.casefold():
+                parsed.explicit_interest=bool(parsed.explicit_interest and any(x in message.casefold() for x in ['i want','i need','i would like','interested','please call','contact me']))
+            else:
+                parsed.need=''
+                parsed.explicit_interest=False
         else:
-            parsed.need=''
             parsed.explicit_interest=False
-    else:
-        parsed.explicit_interest=False
-    if declines_followup(message):parsed.explicit_interest=False
-    for url in re.findall(r'https?://\S+|www\.\S+',parsed.answer):
-        if url not in approved_corpus:raise ProviderFailure('Response included an unapproved external link.')
-    category={'LOAN':'OPPORTUNITY','SERVICE':'SERVICE_ISSUE','CARD':'SERVICE_ISSUE','WEALTH':'GUIDANCE','MERCHANT':'OPPORTUNITY','SAVINGS':'OPPORTUNITY','DEPOSIT':'OPPORTUNITY'}.get(effective_route)
-    if category=='OPPORTUNITY' and not parsed.explicit_interest:category='RESEARCH'
-    return parsed.answer,effective_route,[by_id[x] for x in parsed.source_ids],category,'TIME_SENSITIVE' if effective_route=='SERVICE' else 'ROUTINE',parsed.explicit_interest,parsed.need,route_mismatch,clean_suggestions(parsed.suggestions)
+        if declines_followup(message):parsed.explicit_interest=False
+        for url in re.findall(r'https?://\S+|www\.\S+',parsed.answer):
+            if url not in approved_corpus:raise ProviderFailure('Response included an unapproved external link.')
+        category={'LOAN':'OPPORTUNITY','SERVICE':'SERVICE_ISSUE','CARD':'SERVICE_ISSUE','WEALTH':'GUIDANCE','MERCHANT':'OPPORTUNITY','SAVINGS':'OPPORTUNITY','DEPOSIT':'OPPORTUNITY'}.get(effective_route)
+        if category=='OPPORTUNITY' and not parsed.explicit_interest:category='RESEARCH'
+        return parsed.answer,effective_route,[by_id[x] for x in parsed.source_ids],category,'TIME_SENSITIVE' if effective_route=='SERVICE' else 'ROUTINE',parsed.explicit_interest,parsed.need,route_mismatch,clean_suggestions(parsed.suggestions)
+
+    primary_level=thinking_level or resolve_thinking_levels(message,expected_route)[0]
+    fallback_level=resolve_thinking_levels(message,expected_route)[1]
+    try:
+        res=_attempt(primary_level)
+        return (*res,primary_level)
+    except ProviderFailure:
+        if fallback_level and fallback_level!=primary_level:
+            res=_attempt(fallback_level)
+            return (*res,f'{primary_level}->{fallback_level}')
+        raise
 
 def generate_ai_brief(party_id:str,why_now:str,facts:list[dict],questions:list[str],constraints:list[str],timeline:list[dict],available_sources:dict[str,dict],provider:str)->dict:
     started=time.perf_counter()
@@ -484,13 +517,14 @@ def respond(message,previous,kb,party,history=None):
     tool_start=time.perf_counter();kb={k:dict(v) for k,v in kb.items()}
     tools.append({'name':'read_approved_knowledge','duration_ms':int((time.perf_counter()-tool_start)*1000),'status':'COMPLETED','scope':'Current institution and pinned source versions'})
     if not ready:raise ProviderUnavailable('Requested provider is not configured; no silent fallback is permitted.')
-    route_mismatch=None;suggestions=[]
+    route_mismatch=None;suggestions=[];actual_level=None
     if provider=='local':
         result=local_answer(message,previous,kb,party,history=history);mode='SIMULATED';model=LOCAL_MODEL
         text,route,sources,category,urgency,confirmed,need=result
         suggestions=list(LOCAL_SUGGESTIONS.get(route,()))
     else:
-        text,route,sources,category,urgency,confirmed,need,route_mismatch,suggestions=vertex_answer(message,previous,kb,party,provider,history=history);mode='LIVE';model=os.environ['GEMINI_MODEL']
+        text,route,sources,category,urgency,confirmed,need,route_mismatch,suggestions,actual_level=vertex_answer(message,previous,kb,party,provider,history=history)
+        mode='LIVE';model=os.environ['GEMINI_MODEL']
     if route!='PRIVACY' and human_help_requested(message) and category in {None,'RESEARCH'}:
         category='GUIDANCE';need=message.strip()
     if route!='PRIVACY' and human_help_requested(message) and any(v in message.casefold() for v in ['service issue','service problem']):
@@ -500,7 +534,7 @@ def respond(message,previous,kb,party,history=None):
     governance=(party.get('governance_context') or {})
     if governance.get('question') and 'ASK_CLARIFICATION' in governance.get('steps',[]) and (provider=='local' or '?' not in text):text+='\n\n'+governance['question']
     claims=[{'text':x['content'],'source_id':x['id'],'supported':True} for x in sources] if provider=='local' else []
-    return Answer(text,route,sources,tools,claims,need,category,urgency,confirmed,mode,model,max(1,int((time.perf_counter()-started)*1000)),route_mismatch,suggestions)
+    return Answer(text,route,sources,tools,claims,need,category,urgency,confirmed,mode,model,max(1,int((time.perf_counter()-started)*1000)),route_mismatch,suggestions,None if provider=='local' else actual_level)
 
 def redact_message(message):
     return re.sub(r"(?i)\b(password|pin|otp|cvv|one[- ]time code|card number)\s*(?:is|:|=)\s*[^\s,;]{3,}",lambda m:m.group(1)+": [redacted]",message)
