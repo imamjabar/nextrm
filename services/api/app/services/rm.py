@@ -66,11 +66,18 @@ def party_data(db,p):
     if coverage and coverage.mode!='DEDICATED':owner_name='Relationship service team'
     return {'id':p.id,'name':p.name,'kind':p.kind,'segment':p.segment,'owner_id':p.owner_id,'owner_name':owner_name,'relationship':p.relationship,'identity':p.identity,'contact':p.contact,'locality':p.locality,'customer_ref':p.customer_ref,'version':p.version,'products':ctx.get('products',[]),'declared_goal':ctx.get('declared_goal',''),'occupation':ctx.get('occupation',''),'contact_channel':ctx.get('contact_channel','IN_APP'),'contact_purpose':ctx.get('contact_purpose','Needs discussion'),'email':ctx.get('email',''),'mode':'SYNTHETIC','contacts':contacts}
 
+CHAT_SOURCES={'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE'}
+NEED_GROUPS=('PROBLEM','READY','ASKED','SPOTTED')
+def need_origin(s,source):return 'APP' if s.semantic_key.startswith('APP-') else 'INSIGHT' if s.semantic_key.startswith('FIN-') else 'CHAT' if source and source.kind in CHAT_SOURCES else 'EVENT'
+def need_group(s,origin,hot):return 'PROBLEM' if s.category=='SERVICE_ISSUE' else 'READY' if hot else 'ASKED' if origin=='CHAT' else 'SPOTTED'
+def need_order(row):return (NEED_GROUPS.index(row['group']),-datetime.fromisoformat(row['created_at']).timestamp(),row['id'])
+
 def signal_data(db,s):
     p=db.query(Party).filter_by(id=s.party_id,tenant_id=s.tenant_id).one();source=db.query(Source).filter_by(id=s.source_id,tenant_id=s.tenant_id,party_id=s.party_id).first()
     fresh=source and (utc_now()-source.event_at.replace(tzinfo=timezone.utc)).days<=30
     hot=s.category=='OPPORTUNITY' and s.confirmed and s.review in {'ACCEPTED','EDITED'} and s.workflow not in {'DISMISSED','COMPLETED'} and p.contact=='ALLOWED' and p.identity=='CONFIRMED' and fresh
-    return {'id':s.id,'party_id':p.id,'name':p.name,'category':s.category,'urgency':s.urgency,'evidence':s.evidence,'workflow':s.workflow,'review':s.review,'title':s.title,'need':s.need,'rationale':s.rationale+(' Hot-lead rule REL-1: explicit sourced interest, accepted review, fresh evidence, confirmed identity and current permitted follow-up.' if hot else '')+ ' Priority rule PRI-1: urgent/time-sensitive help, service need, evidence and freshness before routine commercial work.','uncertainty':('Interpretation reviewed. Destination/product outcome remains unconfirmed; no approval or execution is implied.' if s.review in {'ACCEPTED','EDITED'} else s.uncertainty),'confirmed':s.confirmed,'version':s.version,'source_id':s.source_id,'turn_id':s.turn_id,'created_at':stamp(s.created_at),'display_label':'Hot lead' if hot else 'Potential opportunity' if s.category=='OPPORTUNITY' else s.category.replace('_',' ').title(),'contact':p.contact}
+    origin=need_origin(s,source)
+    return {'id':s.id,'party_id':p.id,'name':p.name,'category':s.category,'urgency':s.urgency,'evidence':s.evidence,'workflow':s.workflow,'review':s.review,'title':s.title,'need':s.need,'rationale':s.rationale+(' Hot-lead rule REL-1: explicit sourced interest, accepted review, fresh evidence, confirmed identity and current permitted follow-up.' if hot else '')+ ' Priority rule PRI-1: urgent/time-sensitive help, service need, evidence and freshness before routine commercial work.','uncertainty':('Interpretation reviewed. Destination/product outcome remains unconfirmed; no approval or execution is implied.' if s.review in {'ACCEPTED','EDITED'} else s.uncertainty),'confirmed':s.confirmed,'version':s.version,'source_id':s.source_id,'turn_id':s.turn_id,'created_at':stamp(s.created_at),'display_label':'Hot lead' if hot else 'Potential opportunity' if s.category=='OPPORTUNITY' else s.category.replace('_',' ').title(),'contact':p.contact,'origin':origin,'group':need_group(s,origin,hot)}
 
 def journey_data(db,x):
     from ..models.relationships import FollowupDetail

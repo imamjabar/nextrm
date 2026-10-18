@@ -1,6 +1,6 @@
 """Institution-controlled, bounded relationship capture; no in-app RM messaging."""
 import os,json,re,hashlib
-from datetime import timedelta,timezone
+from datetime import timedelta
 from urllib.parse import quote
 from sqlalchemy import or_
 from fastapi import HTTPException
@@ -113,22 +113,39 @@ def behavior(db,user,party):
 
 def seed_customer_activity(db):
     from ..core.security import CurrentUser
-    p=db.query(Party).filter_by(tenant_id='demo-bank',name='Dina Rahma',kind='PERSON').first()
-    if not p:return
-    user=CurrentUser(user_id='usr-dina',name=p.name,email='dina@example.invalid',role='CUSTOMER',tenant_id=p.tenant_id,institution_type='BANK',entity_id=p.id,data_mode='SYNTHETIC')
-    if not may_capture(user,'APP_ACTIVITY'):return
-    for number in range(1,21):
-        key='mvp-synthetic-deposit-view-'+str(number)
-        if not db.query(AppActivity).filter_by(tenant_id=p.tenant_id,party_id=p.id,request_key=key).first():
-            record_activity(db,user,p,'PRODUCT_VIEW','DEPOSIT',key,origin='SYNTHETIC_BANK_APP',occurred=utc_now()-timedelta(minutes=30-number),mode='SIMULATED')
-    key='mvp-synthetic-loan-opening-error'
-    if not db.query(AppActivity).filter_by(tenant_id=p.tenant_id,party_id=p.id,request_key=key).first():
-        record_activity(db,user,p,'APPLICATION_FAILED','LOAN',key,origin='SYNTHETIC_BANK_EVENT_ADAPTER',occurred=utc_now()-timedelta(minutes=8),mode='SIMULATED')
+    from .rm_seed import sid
     from ..models.relationships import EngagementProfile
     from .enrichment import insights_for
-    profile=db.query(EngagementProfile).filter_by(tenant_id=p.tenant_id,party_id=p.id).first()
-    if profile:capture_financial_signals(db,user,p,insights_for(db,p,json.loads(profile.data_json)))
-
+    for user_id,key in [('usr-dina','DINA'),('usr-aditya','ADITYA'),('usr-nabila','NABILA')]:
+        p=db.get(Party,sid('demo-bank',key))
+        if not p:continue
+        user=CurrentUser(user_id=user_id,name=p.name,email=f'{key.lower()}@example.invalid',role='CUSTOMER',tenant_id=p.tenant_id,institution_type='BANK',entity_id=p.id,data_mode='SYNTHETIC')
+        if not may_capture(user,'APP_ACTIVITY'):continue
+        if key=='DINA':
+            for number in range(1,21):
+                k='mvp-synthetic-deposit-view-'+str(number)
+                if not db.query(AppActivity).filter_by(tenant_id=p.tenant_id,party_id=p.id,request_key=k).first():
+                    record_activity(db,user,p,'PRODUCT_VIEW','DEPOSIT',k,origin='SYNTHETIC_BANK_APP',occurred=utc_now()-timedelta(minutes=30-number),mode='SIMULATED')
+            k='mvp-synthetic-loan-opening-error'
+            if not db.query(AppActivity).filter_by(tenant_id=p.tenant_id,party_id=p.id,request_key=k).first():
+                record_activity(db,user,p,'APPLICATION_FAILED','LOAN',k,origin='SYNTHETIC_BANK_EVENT_ADAPTER',occurred=utc_now()-timedelta(minutes=8),mode='SIMULATED')
+        elif key=='ADITYA':
+            for n in range(1,7):
+                k=f'mvp-synthetic-aditya-deposit-view-{n}'
+                if not db.query(AppActivity).filter_by(tenant_id=p.tenant_id,party_id=p.id,request_key=k).first():
+                    record_activity(db,user,p,'PRODUCT_VIEW','DEPOSIT',k,origin='SYNTHETIC_BANK_APP',occurred=utc_now()-timedelta(hours=40-6*n),mode='SIMULATED')
+            k='mvp-synthetic-aditya-contact-view'
+            if not db.query(AppActivity).filter_by(tenant_id=p.tenant_id,party_id=p.id,request_key=k).first():
+                record_activity(db,user,p,'RM_CONTACT_VIEW','NONE',k,origin='SYNTHETIC_BANK_APP',occurred=utc_now()-timedelta(minutes=90),mode='SIMULATED')
+        elif key=='NABILA':
+            for n,hours in [(1,26),(2,3)]:
+                k=f'mvp-synthetic-nabila-savings-view-{n}'
+                if not db.query(AppActivity).filter_by(tenant_id=p.tenant_id,party_id=p.id,request_key=k).first():
+                    record_activity(db,user,p,'PRODUCT_VIEW','SAVINGS',k,origin='SYNTHETIC_BANK_APP',occurred=utc_now()-timedelta(hours=hours),mode='SIMULATED')
+        profile=db.query(EngagementProfile).filter_by(tenant_id=p.tenant_id,party_id=p.id).first()
+        if profile:capture_financial_signals(db,user,p,insights_for(db,p,json.loads(profile.data_json)))
+    from .demo_story import seed_demo_story
+    seed_demo_story(db)
 
 def capture_financial_signals(db,user,party,insights):
     from decimal import Decimal

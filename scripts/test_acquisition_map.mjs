@@ -394,71 +394,71 @@ assert.equal(addProspectBtn, undefined, 'Existing customer must not have Add as 
 await act(async () => cardTree.unmount());
 console.log('PASS PlaceCard: existing customer links to relationship and prohibits prospect addition');
 
-// 5. Test GoogleTerritoryMap: Honest missing-key notice
+// 5. GoogleTerritoryMap: honest missing-key notice, legend and usable area search
 const GoogleTerritoryMap = load('components/rm/spatial/GoogleTerritoryMap.tsx').GoogleTerritoryMap;
 let mapTree;
 let searchedArea = null;
-
 await act(async () => {
   mapTree = Renderer.create(
     React.createElement(GoogleTerritoryMap, {
       center: {lat: -6.250, lng: 106.981},
       radiusM: 1500,
-      places: [samplePoiNew, samplePoiPossible, samplePoiExisting],
-      counts: sampleNearby.counts,
-      showExisting: false,
+      pins: [{id: 'a', lat: -6.24, lng: 106.99, title: 'A', color: '#285C3C', border: '#1A3D28'}],
+      legend: [{key: 'READY', label: 'Ready to talk', color: '#285C3C', count: 1}, {key: 'NEW', label: 'New nearby', color: '#285D86', count: 2}],
       onSearchThisArea: (c, r) => { searchedArea = {c, r}; }
     }),
     options
   );
 });
-
 assert.ok(labelText(mapTree.root).includes('Google Maps is not configured (set GOOGLE_MAPS_BROWSER_KEY)'));
-assert.ok(labelText(mapTree.root).includes('1 existing customer filtered out'));
-assert.ok(labelText(mapTree.root).includes('New lead (1)'));
-assert.ok(labelText(mapTree.root).includes('Possible match (1)'));
-
-// "Search this area" action remains usable when map unconfigured
+assert.ok(labelText(mapTree.root).includes('Ready to talk 1'));
+assert.ok(labelText(mapTree.root).includes('New nearby 2'));
+assert.ok(labelText(mapTree.root).includes('1.5 km around the centre'));
 await click(mapTree, 'Search this area');
 assert.deepEqual(searchedArea, {c: {lat: -6.250, lng: 106.981}, r: 1500});
-
 await act(async () => mapTree.unmount());
-console.log('PASS GoogleTerritoryMap: honest missing-key message, counts legend and usable search without fake map');
+console.log('PASS GoogleTerritoryMap: honest missing-key message, legend counts and usable area search without a fake map');
 
-// 6. Test Acquisition page: Nearby businesses mode & Geocode address search
+// 6. Acquisition page: one list for assigned prospects and nearby businesses
 const shared = load('components/rm/shared.tsx');
-overrides.set('@/components/rm/shared', {
-  ...shared,
-  useRM: () => ({data: {prospects: []}, error: '', refresh: async () => {}, pending: false})
-});
-
+const linkedPoi = {...samplePoiNew, id: 'poi-linked', name: 'Linked Prospect Shop', match_status: 'PROSPECT', prospect_id: 'prospect-ready'};
+sampleNearby.places = [samplePoiNew, samplePoiPossible, samplePoiExisting, linkedPoi];
+const assigned = (id, extra = {}) => ({id, party: {id: 'party-' + id, name: id, kind: 'ORGANIZATION', locality: 'Bekasi', contacts: [], relationship: 'PROSPECT', identity: 'CONFIRMED', contact: 'ALLOWED'}, source: {id: 'src-' + id}, state: 'ASSIGNED', disposition: null, need: 'Collections help', need_reviewed: false, reasons: ['Opt-in enquiry'], latitude: -6.251, longitude: 106.982, version: 1, map_mode: 'SIMULATED', priority_tier: 'REVIEW_FIRST', priority_reason: 'Permitted', next_action: 'Review', priority_method: 'ACQ-1', hot_lead: false, hot_reason: '', ...extra});
+const assignedRows = [assigned('prospect-review'), assigned('prospect-ready', {priority_tier: 'READY_FOR_DISCUSSION', hot_lead: true}), assigned('prospect-far', {latitude: -6.9, longitude: 107.6})];
+let pageMap, pageBrief, pagePlace;
+overrides.set('@/components/rm/shared', {...shared, useRM: () => ({data: {prospects: assignedRows, map_label: '', priority_method: 'ACQ-1'}, error: '', refresh: async () => {}, pending: false})});
+overrides.set('@/components/rm/spatial/GoogleTerritoryMap', {GoogleTerritoryMap: props => { pageMap = props; return null; }});
+overrides.set('@/components/rm/spatial/ProspectBrief', {ProspectBrief: props => { pageBrief = props; return React.createElement('div', null, 'Brief ' + props.p.id); }});
+overrides.set('@/components/rm/spatial/PlaceCard', {PlaceCard: props => { pagePlace = props; return React.createElement('div', null, 'Place ' + props.place.id); }});
 const Acquisition = load('app/(workspace)/acquisition/page.tsx').default;
+const pins = () => Array.from(pageMap.pins, p => p.id);
+const chip = async (tree, title) => {
+  const found = tree.root.findAllByType('button').find(n => labelText(n).startsWith(title));
+  assert.ok(found, `Missing chip ${title}`);
+  await act(async () => found.props.onClick());
+};
 let acqTree;
 apiCalls = [];
-
-await act(async () => {
-  acqTree = Renderer.create(React.createElement(Acquisition), options);
-});
-
-assert.ok(labelText(acqTree.root).includes('Assigned prospects'));
-assert.ok(labelText(acqTree.root).includes('Nearby businesses'));
-
-// Switch to Nearby businesses mode
-await click(acqTree, 'Nearby businesses');
-assert.ok(apiCalls.some(c => c.endpoint.includes('/v1/rm/poi/nearby')));
-assert.ok(labelText(acqTree.root).includes('Nearby establishments'));
-assert.ok(labelText(acqTree.root).includes('PT Sejahtera Logistik'));
-
-// Execute Address Geocode search
-const geocodeInput = acqTree.root.findAllByType('input').find(i => i.props['aria-label'] === 'Search address or locality');
-assert.ok(geocodeInput);
-await act(async () => {
-  geocodeInput.props.onChange({target: {value: 'Summarecon Mall'}});
-});
-
-await click(acqTree, 'Search address');
+await act(async () => { acqTree = Renderer.create(React.createElement(Acquisition), options); });
+assert.equal(locationRequests, 0, 'Location is requested only on an explicit click');
+assert.ok(apiCalls.some(c => c.endpoint.includes('/v1/rm/poi/nearby?lat=-6.25&lng=106.981&radius_m=5000&include_existing=true')));
+assert.ok(!labelText(acqTree.root).includes('Nearby businesses'), 'No separate assigned/nearby modes');
+assert.deepEqual(pins(), ['prospect-ready', 'prospect-review', 'place:poi-mitra-abadi', 'place:poi-pt-sejahtera'], 'Ready, then checks, then new businesses; linked place deduplicated; existing customer held back');
+assert.equal(pageBrief.p.id, 'prospect-ready');
+assert.ok(labelText(acqTree.root).includes('1 assigned prospect outside this area.'));
+assert.ok(labelText(acqTree.root).includes('Show 1 not for now'));
+await act(async () => pageMap.onSelect('place:poi-pt-sejahtera'));
+assert.equal(pagePlace.place.id, 'poi-pt-sejahtera');
+await chip(acqTree, 'Not for now');
+assert.deepEqual(pins(), ['place:poi-dina-boutique']);
+await chip(acqTree, 'All');
+await click(acqTree, 'Show all my prospects');
+assert.ok(pins().includes('prospect-far'));
+const geocodeInput = acqTree.root.findAllByType('input').find(i => i.props['aria-label'] === 'Search an address or area');
+await act(async () => geocodeInput.props.onChange({target: {value: 'Summarecon Mall'}}));
+await act(async () => acqTree.root.findByType('form').props.onSubmit({preventDefault() {}}));
 assert.ok(apiCalls.some(c => c.endpoint.includes('/v1/rm/poi/geocode?q=Summarecon%20Mall')));
-assert.ok(labelText(acqTree.root).includes('Centered on: Summarecon Mall Bekasi'));
-
+assert.ok(apiCalls.some(c => c.endpoint.includes('/v1/rm/poi/nearby?lat=-6.225&lng=106.999')));
+assert.ok(labelText(acqTree.root).includes('Summarecon Mall Bekasi'));
 await act(async () => acqTree.unmount());
-console.log('PASS Acquisition: nearby mode toggle, initial fetch and geocode search integration');
+console.log('PASS Acquisition: one grouped list for prospects and nearby businesses, dedupe, held-back customers and area search');

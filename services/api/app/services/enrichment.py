@@ -74,7 +74,7 @@ def insights_for(db,p,d):
         if corrected.get('source_id')==spend['source']['id'] and corrected.get('source_version')==spend['source']['version'] and corrected.get('source_hash')==spend['source']['hash']:
             spend['explanation']+=' Customer-provided category correction: '+corrected['category']+'. Original attribution is retained.'
     return cards
-def eligibility(db,row,p,profile=None):
+def eligibility(db,row,p,profile=None,insights=None):
     meta=db.query(SuggestionMeta).filter_by(id=row.id,tenant_id=p.tenant_id).first()
     if not meta:return None
     now=utc_now();profile=profile or profile_for(db,p);d=json.loads(profile.data_json);deps=json.loads(meta.dependencies_json)
@@ -91,7 +91,8 @@ def eligibility(db,row,p,profile=None):
         if p.contact!='ALLOWED' or p.identity!='CONFIRMED':return 'Commercial contact or identity restriction'
         urgent=db.query(Signal).filter_by(tenant_id=p.tenant_id,party_id=p.id,category='SERVICE_ISSUE').filter(Signal.urgency.in_(['URGENT','TIME_SENSITIVE']),Signal.workflow.notin_(['COMPLETED','DISMISSED'])).first()
         if urgent:return 'Service care takes priority'
-        if any(x['status']=='GAP' for x in insights_for(db,p,d)):return 'Financial care takes priority'
+        ins=insights if insights is not None else insights_for(db,p,d)
+        if any(x['status']=='GAP' for x in ins):return 'Financial care takes priority'
     return ''
 
 def candidate(db,p,profile,family,source,expires,goal=False,body=None,title=None,prompt=None,card=None):
@@ -206,7 +207,7 @@ def feed(db,p,user=None):
     if event and isinstance(facts.get('inactivity_days'),int) and facts['inactivity_days']>=90:add('E12',event,days=7)
     decisions=[];eligible=[]
     for row in candidates:
-        reason=eligibility(db,row,p,profile);meta=db.get(SuggestionMeta,row.id)
+        reason=eligibility(db,row,p,profile,insights=insights);meta=db.get(SuggestionMeta,row.id)
         decisions.append({'nudge_id':row.id,'family':meta.family,'category':meta.category,'source_versions':json.loads(meta.dependencies_json)['sources'],'expires_at':stamp(meta.expires_at),'result':'EXCLUDED' if reason else 'ELIGIBLE','reason':reason or 'Current sourced context and permitted useful action'})
         if not reason:eligible.append(row)
     # Existing seeds remain accessible through their original endpoints, but do not duplicate the feed.

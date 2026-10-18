@@ -143,6 +143,26 @@ def party_scope(db,user,pid):
     elif open_signals:starters.append('Should this need become a follow-up?')
     else:starters.append('What would make a useful next conversation?')
     starters.append('Which questions should I ask first?')
+    if p.kind=='PERSON' and p.relationship=='EXISTING_CUSTOMER':
+        from ...models.relationships import EngagementProfile
+        from ..enrichment import insights_for
+        from ..money_display import display_values
+        from ..activity_feed import chat_items
+        profile=db.query(EngagementProfile).filter_by(tenant_id=user.tenant_id,party_id=p.id).first()
+        insights=insights_for(db,p,json.loads(profile.data_json) if profile else {})
+        ins_map={c['key']:c for c in insights if c.get('status')!='UNAVAILABLE'}
+        specs=[('cash_flow',('available','commitments','difference')),('spending_breakdown',('total_spend','top_category')),('portfolio',('total_value','change_30d_percent')),('net_worth',('net_worth',)),('term_deposit',('balance','maturity_date','days_to_maturity'))]
+        segments=[]
+        for label,keys in specs:
+            ic=ins_map.get(label)
+            if not ic:continue
+            disp=display_values(ic);pairs=[f"{k.replace('_',' ')} {disp[k]}" for k in keys if k in disp]
+            if pairs:segments.append(f"{label}: "+', '.join(pairs))
+        cards['snapshot']=card('snapshot','OBSERVED','Customer financial snapshot (same as customer app)','; '.join(segments),record_type='snapshot',record_id=p.id)
+        chats=chat_items(db,user.tenant_id,{p.id:p.name},5)
+        for c in chats:cards[c['id']]=card(c['id'],'CUSTOMER_SAID','Customer chat: '+c['topic'],c['text'],at=c['at'],record_type='chat',record_id=p.id)
+        if chats:starters.insert(1,f"What has {first} asked about recently?")
+    starters=starters[:3]
     owned=p.owner_id==user.user_id
     return {'scope':'PARTY','party':p,'cards':cards,'starters':starters,'base_version':p.version,
             'label':f"{p.name} · {'assigned to you' if owned else 'shared case'}",
@@ -152,8 +172,10 @@ def party_scope(db,user,pid):
             'resource':p.id}
 
 def book_scope(db,user):
+    from zoneinfo import ZoneInfo
     from ...routers.rm import prospects_data
-    from ..coverage import visible_ids
+    from ..coverage import visible_ids,owned_ids
+    from ..activity_feed import chat_items
     require_rm(user);cards={}
     signals=db.query(Signal).filter_by(tenant_id=user.tenant_id,owner_id=user.user_id).filter(Signal.workflow.notin_(list(CLOSED_SIGNAL))).all();signals.sort(key=priority_key)
     for s in signals[:10]:cards['signal:'+s.id]=signal_card(db,s,s.party_id,with_name=True)
@@ -166,11 +188,22 @@ def book_scope(db,user):
     prospects.sort(key=lambda x:order.get(x['priority_tier'],3))
     for x in prospects[:5]:
         cards['prospect:'+x['id']]=card('prospect:'+x['id'],'RECORD','Prospect: '+x['party']['name'],f"{words(x['priority_tier'])}. {x['priority_reason']} Next: {x['next_action']}"+(f" Hot lead by rule: {x['hot_reason']}" if x['hot_lead'] else ''),at=x['source']['event_at'],record_type='prospect',record_id=x['id'],href='/acquisition?selected='+x['id'])
+    parties=db.query(Party).filter(Party.tenant_id==user.tenant_id,Party.relationship=='EXISTING_CUSTOMER',Party.id.in_(owned_ids(db,user))).all()
+    names={p.id:p.name for p in parties}
+    chats=chat_items(db,user.tenant_id,names,5)
+    for c in chats:cards[c['id']]=card(c['id'],'CUSTOMER_SAID',c['name']+' chat: '+c['topic'],c['text'],at=c['at'],record_type='chat',record_id=c['party_id'],href='/relationships/'+c['party_id'],name=c['name'])
     customers=visible_ids(db,user).count();overdue=sum('Overdue.' in c['text'] for c in rows)
     cards['book']=card('book','RECORD','Your book today',f"{customers} assigned relationships, {len(signals)} open customer needs, {len(followups)} open follow-ups ({overdue} overdue), {len(prospects)} supplied prospects.",record_type='book')
     cards['policy']=card('policy','POLICY','NextRM boundaries','NextRM prepares and explains only. It never contacts customers, approves credit, opens products or moves money. Commercial outreach needs current contact permission; service help stays available.',record_type='policy')
     starters=['Who should I contact first today?','Which follow-ups need attention?' if not overdue else 'Which follow-ups are overdue?']
     if prospects:starters.append('Which new prospects are ready to discuss?')
+    jakarta=ZoneInfo('Asia/Jakarta');today_date=datetime.now(jakarta).date()
+    def is_today(at_str):
+        if not at_str:return False
+        try:d=datetime.fromisoformat(str(at_str).replace('Z','+00:00'));return (d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d).astimezone(jakarta).date()==today_date
+        except (ValueError,TypeError):return False
+    if any(is_today(c['at']) for c in chats):starters.insert(1,'What did customers ask about today?')
+    starters=starters[:3]
     return {'scope':'BOOK','party':None,'cards':cards,'starters':starters,'base_version':None,
             'label':'Your relationship book','detail':f"{len(signals)} open needs · {len(followups)} open follow-ups · {len(prospects)} prospects",
             'access':'Customers and prospects assigned to you only.',

@@ -1,186 +1,223 @@
 # NextRM
 
-**An AI relationship copilot for banks.** NextRM turns what customers ask a bank assistant, and what bank-supplied prospect data shows, into sourced, reviewable signals that a relationship manager (RM) can act on, with consent and governance enforced by the server.
+An AI relationship copilot for banks. Customers get straight answers from their bank's assistant, and their relationship manager (RM) sees what they asked for, in their own words, with the source attached.
 
-Theme: **BFSI: Intelligent Risk, Fraud & Financial Experiences** (Google Cloud AI Builder Cup 2026).
+[![Next.js](https://img.shields.io/badge/Next.js-14-202720?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Python_3.11-285C3C?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Gemini](https://img.shields.io/badge/Gemini-3.5_Flash-285D86?logo=googlegemini&logoColor=white)](https://cloud.google.com/vertex-ai)
+[![Cloud Run](https://img.shields.io/badge/Cloud_Run-asia--southeast1-285D86?logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
+[![PostgreSQL](https://img.shields.io/badge/Cloud_SQL-PostgreSQL_17-525D53?logo=postgresql&logoColor=white)](https://cloud.google.com/sql)
 
-**Live demo:** <https://nextrm-web-551212450229.asia-southeast1.run.app/demo>. Choose a synthetic account: Dina (customer), Maya (RM), Arif (AI admin) or Intan (quality reviewer). The data is synthetic and persists in Cloud SQL; `scripts/gcp/reset-demo-data.sh --yes` restores it. The API scales to zero when idle, so the first request after a quiet period waits for a container start.
+Built for the Google Cloud AI Builder Cup 2026, theme BFSI: Intelligent Risk, Fraud & Financial Experiences.
+
+Live demo: <https://nextrm-web-551212450229.asia-southeast1.run.app/demo>. No sign-up: pick Dina (customer), Maya (RM) or Arif (AI admin), and switch between the customers Dina, Aditya and Nabila from the header. All data is synthetic and persists in Cloud SQL; `scripts/gcp/reset-demo-data.sh --yes` restores the starting state. The API scales to zero when idle, so the first request after a quiet period waits a few seconds for a container to start.
 
 ---
 
-## The Problem
+## The problem
 
-Bank relationship managers split their time between existing customers and new prospects. The context they need is scattered across chat transcripts, app activity, account snapshots and lead lists. Customers, meanwhile, want quick help without being sold to. NextRM connects the two sides without blurring them: customers get help first, and RMs get only what the customer shared or the bank is permitted to use, with the source attached.
+Maya is a relationship manager at a retail bank. She looks after a book of existing customers and is also expected to bring in new ones. The context she needs is spread across chat transcripts, app activity, account snapshots and lead lists. Preparing for one good conversation means stitching those together by hand, so follow-ups go stale and the customer who asked for help last week waits.
+
+Aditya banks with her. His question is simple: how much can he safely spend until payday? Bank chatbots tend to answer questions like his with a product pitch, and the outreach he receives rarely has anything to do with what he asked.
+
+The bank sits between them with its own limits. It cannot let an AI invent a balance, promise an approval, or contact a customer who has said no to marketing.
+
+## What NextRM does
+
+NextRM links the two sides of that relationship. The customer's assistant answers from approved bank knowledge and the customer's own figures. When a customer asks for their RM, or the app sees a problem such as a failed transfer, NextRM records a need with the customer's exact words and its source. Maya reviews it, gets a sourced brief and a draft, and makes the contact herself through the bank's own channels. NextRM never sends a message on its own.
+
+Prospects take a parallel path. Bank lead lists and businesses near Maya's area are checked against existing customers first, so she never cold-calls someone who already banks with her.
+
+```mermaid
+flowchart LR
+  C[Customer asks the assistant] --> A[Answer from own figures<br/>and approved knowledge]
+  A -->|asks for an RM or a problem is detected| N[Need with exact words<br/>and source]
+  L[Bank lead lists and<br/>nearby businesses] --> P[Checked against<br/>existing customers]
+  N --> T[Maya reviews on Today]
+  P --> Q[Maya reviews on Acquisition]
+  T --> F[Follow-up, brief and draft]
+  Q --> F
+  F --> B[Maya contacts the customer<br/>through bank channels]
+```
 
 ---
 
-## What It Does
+## For customers
 
-| Surface | User | What It Delivers |
+The customer assistant is meant to live inside the bank's own mobile banking app, or any other app where the bank already serves its customers. Customers keep the app they trust, and the bank adds the assistant and its Home screen to it. The API identifies the customer from a verified sign-in token, and the assistant reads only that customer's records.
+
+The demo at `/customer/chat` shows the assistant in a phone frame that stands in for a bank's app. It has a chat and a Home screen.
+
+The chat keeps several conversations with their history. It answers questions about savings, deposits, cards, payments, loans, investing basics, merchant services and privacy from the bank's approved knowledge, and shows which sources it used. Passwords, PINs, OTPs, CVVs and card numbers are removed before anything is stored or sent to the model.
+
+Home shows spending by category, safe to spend until payday, goal progress, card interest against savings yield, linked investments and net worth. Every figure is computed in code with `Decimal` from the customer's own records. When data is missing the screen says so instead of showing zero.
+
+The assistant handles the ten money questions customers ask most:
+
+| Customer asks | Answer uses | Where it stops |
 |---|---|---|
-| **Customer Assistant** (`/customer/chat`) | Bank customer | Phone-layout Home with financial insights computed from the customer's own records: where the money went, safe-to-spend until payday, goal progress, credit card cost against savings, a snapshot of investment holdings, net worth and suggested next steps, plus recurring bills, income, idle cash, commitments, deposit maturity and ranked nudges. Multi-turn bank-assistant chat with New Chat and History; official RM/team contact from bank configuration. No in-app RM messaging. |
-| **RM Retention** (`/workspace`, `/retention`, `/relationships/[id]`, `/follow-ups`) | Relationship manager | Home briefing, existing-customer signal queue, customer detail (needs, behavior, notes, history), reviewed follow-ups with due dates and outcomes. |
-| **RM Acquisition** (`/acquisition`) | Relationship manager | Assigned prospect shortlist plus **Nearby businesses**: Google Maps with a server-side radius search over points of interest (synthetic dataset or Google Places), each place checked against the bank's customer records (phone/NPWP/email hash, name + distance). Existing customers are filtered out by default; possible matches need RM review; a place becomes a prospect only by explicit RM action. |
-| **AI Governance & Quality** (`/settings/ai-quality`, `/settings/governance`, `/settings/assignments`) | Institution AI admin / quality reviewer | Trace monitoring, evaluation runs, rule editing with **draft → test → publish** releases pinned to later answers, and RM coverage/capacity. Configuration rights never grant conversation content; that needs a separate grant. |
+| Where is my money going? | 30-day spend by category, share and change | Suggests a cap, does not set a budget |
+| How much can I safely spend this month? | Balance and typical spending until payday | A snapshot, not a live balance |
+| How do I start investing with little money? | Cash buffer, card debt, monthly surplus | No product recommendation |
+| Am I on track for my goals? | Target, saved amount, date, monthly saving | Goals are set by the customer |
+| Is my portfolio doing well? | Holdings, gain or loss, 30-day change, concentration | No buy, sell or hold advice |
+| Pay down debt, save or invest? | Card rate, minimum payment, savings yield | No product advice |
+| Can I cut recurring costs? | Monthly estimate per merchant | Cancelling happens with the merchant |
+| What should I do next? | Fixed-order rules over the answers above | Options only, nothing is executed |
+| How is my financial health? | Assets, liabilities, buffer months, savings rate | Separate measures, never one score |
+| Why did my investments drop? | Holdings and the bank's dated market note | No timing or prediction; offers an RM review |
+
+Suggestions come from twelve fixed families and are ordered care first: service problems, then guidance, education, recognition, and commercial offers last. The app shows at most three at a time. The customer can explore one, ask for their RM, dismiss it, snooze the topic, or opt out. Saying something like "stop selling" switches off commercial suggestions straight away, and service help keeps working.
+
+When a customer wants personal investment advice, the assistant hands over to their RM rather than giving it. The contact sheet lists only the channels the bank has configured.
+
+## For relationship managers
+
+Maya's workspace starts on Today (`/workspace`). Needs are grouped care first under Customer has a problem, Ready to talk, Asked for you, and Spotted for you. Each one shows what happened, what it means and the next step, with the customer's own words. A blocked card always sits above a sales opportunity.
+
+Opening a customer (`/relationships/[id]`) shows their overview, needs, behaviour timeline and notes. The pre-call brief from Gemini lists talking points, questions to ask and cautions, and every point cites the record it came from.
+
+Follow-ups (`/follow-ups`) move through planned, in progress, done and cancelled, with snooze and a recorded outcome. For each one Maya can ask for an email or a phone script. A consent check runs before the model is called, and the result is a draft for her to use, never a sent message. Marking a follow-up done records her task; opening a deposit or loan still happens in the bank's own systems.
+
+Acquisition (`/acquisition`) puts prospects from bank imports and businesses around the chosen area into one list and one map. They are grouped by what Maya should do next: Ready to talk, To check, New nearby, In follow-up, and Not for now. Each business is matched against existing customers before it can become a prospect. Her device location is used only when she clicks Use my location, and it is never sent to the server.
+
+Pulse (`/pulse`) counts open review items, urgent service cases and overdue follow-ups.
+
+## For the bank
+
+Arif, the institution's AI administrator, controls how the assistant behaves. In Governance (`/settings/governance`) he maps customer questions to approved knowledge and allowed responses. Changes go through draft, test and publish, and a draft must pass its regression suite before it can be published. Each chat turn records the release it ran under, so any answer can be traced to the rules in force at the time.
+
+Coverage (`/settings/assignments`) sets dedicated RMs, a shared service pool and digital-first routing, with limits on book size. AI quality (`/settings/ai-quality`) shows traces, evaluation runs, latency and error rates.
+
+Arif's quality view shows traces without the conversation text. Reading what a customer actually wrote needs a separate quality reviewer role with an explicit, time-limited grant. Every bank is a separate tenant, and the API enforces that on every request.
 
 ---
 
-## How AI Is Used
+## Try it in 2 minutes
 
-Gemini does three jobs, all through one adapter (`services/api/app/services/assistant/engine.py`, Google Gen AI SDK `google-genai`, Vertex AI with `NEXTRM_AI_PROVIDER=vertex` or the Gemini API with `NEXTRM_AI_PROVIDER=gemini`):
-
-| Job | Endpoint | Grounding and Validation |
-|---|---|---|
-| **Customer banking assistant** | `POST /v1/rm/chat/{id}/turns` | Acts as a personal banking assistant: answers directly, connects the question to the customer's own validated figures (spending, goals, card debt, holdings, net worth), offers one or two practical options and returns two or three tappable follow-up questions. Only the insight cards that serve the question are read. Approved knowledge and the customer's own snapshot only; cited source IDs must exist; every number must match a validated value (amounts are shown as `IDR 1,150,000`); the extracted need must be an exact customer-message span; privacy routing is forced deterministically; follow-up suggestions with numbers, links or promises are dropped. Investment questions are answered from the customer's linked holdings and the bank's dated market note: the assistant explains but never recommends buying, selling or holding, never predicts, never states a risk tolerance, and offers a relationship-manager handoff for a suitability review. An answer that does so fails closed. |
-| **RM pre-call brief** | `POST /v1/rm/parties/{id}/ai-brief` | Built from the deterministic relationship brief (customer statements, observed events, shared goals, human notes). Every talking point must cite a source in that brief; numbers must appear in the cited source; no URLs, approvals or guarantees. |
-| **RM outreach draft** | `POST /v1/rm/follow-ups/{id}/ai-draft` | English email or phone script. A deterministic consent gate runs before the model (restricted customers only get service drafts). Draft only, never sent or saved; same citation and number checks. |
-
-Customer nudge wording on the Home screen is also written by Gemini from validated insight cards; if the wording fails the number or promise checks, the card shows the validated deterministic wording labelled `DETERMINISTIC`.
-
-- **Typed output:** JSON schema at temperature 0; every generation is audited with mode, model, prompt version, latency and cited source IDs, never the generated text.
-- **No silent fallback:** if the selected Google provider is missing, times out or returns invalid output, the request fails visibly. Every answer is labelled `LIVE` or `SIMULATED`.
-- **Deterministic guardrails own decisions:** access, consent, eligibility, privacy and unsafe-action rules run before and after the model. Calculators own arithmetic (Decimal, never the model). Customer and source text is treated as data, never as instructions.
-- **Governed behavior:** institution admins change intent, response, insight and nudge rules through tested, versioned releases. Protected scope, privacy and safety guards cannot be removed by a rule or prompt.
-
-### Customer questions the demo answers
-
-Each answer is built from a deterministic calculator in `services/api/app/services/planning.py` (Decimal, no model arithmetic) and explained by Gemini. `./.venv/bin/python scripts/top10_questions.py --live --show` asks all ten as the demo customer and grades every answer.
-
-| # | Customer question | Computed from | What the assistant does |
+| Step | Enter as | Do this | You see |
 |---|---|---|---|
-| 1 | Where is my money going and how can I stop overspending? | 30-day category spend, share, change, savings rate | Names the biggest and fastest-growing categories and offers a cap or review |
-| 2 | How much can I safely spend or save this month? | Balance minus typical spending until payday, 30-day projection, monthly surplus | Gives the headroom until payday and flags a shortfall |
-| 3 | How do I start investing with limited money? | Cash buffer, card debt, monthly surplus, approved education | Checks buffer and debt first, explains fund types, states the suitability boundary |
-| 4 | Am I on track for my goals? | Required against planned monthly saving, projection, shortfall | Shows each goal, the monthly gap and the later-date alternative |
-| 5 | Is my portfolio performing well? | Value, gain or loss, 30-day change, allocation, concentration | Explains the figures without buy, sell or hold advice and offers an RM review |
-| 6 | Should I pay down debt, save more or invest? | Card interest against savings yield, cash left after repayment, minimum-payment trap | Puts the certain cost first and investing last, no product advice |
-| 7 | Can I cut subscriptions or recurring costs? | Per-merchant monthly estimate, essential, variable or discretionary | Lists discretionary items with amounts; cancelling happens with the merchant |
-| 8 | What should I do next? | Fixed-order rules: cash gap, debt, buffer, goals, spending, learning | Presents the first steps as options |
-| 9 | How is my financial health and net worth trending? | Assets minus liabilities, 30-day change, buffer, savings rate, debt share | Shows separate measures, never a single score |
-| 10 | Why did my investments drop and should I sell? | Holdings plus the bank's dated market note | Explains the move, says it cannot tell the customer to sell, lists the decision facts and offers an RM review |
+| 1 | Aditya (customer) | Open Chats, tap "How much can I safely spend until payday?" | An answer built from his own balance and spending, with sources and a `LIVE` or `SIMULATED` label |
+| 2 | Maya (RM) | On Today, open Aditya's term-deposit need under "Asked for you". Click Looks right, then Prepare follow-up | His exact words, a 3-step progress bar, and a follow-up draft. Nothing is sent |
+| 3 | Maya (RM) | Open Acquisition. Check Ready to talk, then New nearby. Try Use my location | Assigned prospects and nearby businesses in one list and one map, each business checked against existing customers |
+| 4 | Arif (AI admin) | Open Governance. Edit a rule, test it, publish it | Versioned rule releases that later answers are pinned to |
+
+## Demo accounts
+
+| Account | Role | Story | Cannot see |
+|---|---|---|---|
+| Dina Rahma | Customer | Teacher saving for school fees; a loan application hit an error in the app | RM notes, other customers |
+| Aditya Pratama | Customer | Engineer with a diversified portfolio; a term deposit matures soon | RM notes, other customers |
+| Nabila Aulia | Customer | Freelance designer with variable income, waiting for a new debit card | RM notes, other customers |
+| Maya Putri | Relationship manager | Existing relationships, prospects and follow-ups | Customer chats, customer preferences, AI quality data |
+| Arif | AI administrator | Governance releases, coverage and AI monitoring | Raw conversations without a quality grant |
+
+Switch between Dina, Aditya and Nabila from the header at any time.
 
 ---
+
+## How Gemini is used
+
+One adapter, [`engine.py`](services/api/app/services/assistant/engine.py), calls Gemini (`gemini-3.5-flash`) on Vertex AI through the Google Gen AI SDK.
+
+| Job | Grounded in |
+|---|---|
+| Customer banking answers | Approved bank knowledge and the customer's own validated figures |
+| RM pre-call brief | The deterministic relationship brief; every point cites a source |
+| RM outreach draft (email or phone script) | The follow-up and its sources; a consent check runs before the model |
+
+Every answer passes the same checks:
+
+- Each figure in an answer must appear in a cited source. Money math runs in code with `Decimal`, never in the model.
+- Each cited ID must be an approved source, and an extracted need must quote the customer exactly.
+- Promises such as "approved" or "guaranteed" are rejected, unknown URLs are blocked, and credentials are redacted before storage.
+- Output is structured, at temperature 0. If Gemini fails, the request fails visibly, and every answer is labelled `LIVE` or `SIMULATED`.
+- Customers with restricted consent get no sales suggestions, and outreach stays a draft.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  C[Customer phone UI] --> W
-  R[RM workspace] --> W
-  A[AI admin console] --> W
-  W[Next.js web<br/>server-side proxy] -->|service-authenticated| API[FastAPI API<br/>tenant / role / subject checks]
-  API --> G[Guardrails & governance releases]
-  G --> M[Gemini via Google Gen AI SDK<br/>Vertex AI]
-  API --> DB[(PostgreSQL<br/>Cloud SQL / local server)]
-  API --> Q[Evaluation jobs]
-  WK[Worker] --> Q
+  U[Customer, RM, AI admin] --> W[Next.js on Cloud Run<br/>public]
+  W -->|IAM ID token| API[FastAPI on Cloud Run<br/>private, tenant and role checks]
+  API --> G[Guardrails and governed rules]
+  G --> M[Gemini on Vertex AI]
+  API --> DB[(Cloud SQL PostgreSQL)]
+  API --> WK[Evaluation worker]
 ```
 
-Cloud target: separate Cloud Run services for web, API and worker; Vertex AI for Gemini; Cloud SQL for PostgreSQL; Secret Manager; Firebase Authentication for end-user identity. Deployment scripts are in `scripts/gcp/` and container files in `infra/`. See [docs/DEPLOY.md](docs/DEPLOY.md).
+| Layer | Technology | Purpose |
+|---|---|---|
+| Web | Next.js 14, React, TypeScript | Customer app, RM workspace, admin settings |
+| Maps | Google Maps JavaScript API | Acquisition map |
+| API | FastAPI, SQLAlchemy, Alembic, Pydantic | Tenant and role checks, guardrails, typed contracts |
+| AI | Gemini via `google-genai` on Vertex AI | Answers, briefs and drafts |
+| Data | Cloud SQL for PostgreSQL 17, Secret Manager | Records, audit trail, credentials |
+| Hosting | Cloud Run (web, API, migration job), Artifact Registry, Cloud Build | Separate public web and private API services |
+
+## Project structure
+
+```
+├── apps/web/src/
+│   ├── app/
+│   │   ├── (workspace)/customer/chat/    # Demo customer app: chat and Home in a phone frame
+│   │   ├── (workspace)/workspace/        # RM Today desk
+│   │   ├── (workspace)/relationships/    # Customer profile and pre-call brief
+│   │   ├── (workspace)/follow-ups/       # Follow-ups and outreach drafts
+│   │   ├── (workspace)/acquisition/      # Prospects and nearby businesses
+│   │   ├── (workspace)/settings/         # Governance, AI quality, assignments
+│   │   └── demo/                         # Demo account picker
+│   ├── components/rm/                    # Workspace and customer components
+│   └── lib/                              # API client, needs and opportunity grouping, generated types
+├── services/
+│   ├── api/app/
+│   │   ├── routers/                      # HTTP endpoints by area
+│   │   ├── services/assistant/engine.py  # The single Gemini adapter
+│   │   ├── services/                     # Insights, customer matching, places, governance
+│   │   └── models/, schemas/             # Database tables and typed contracts
+│   ├── api/migrations/                   # Alembic migrations
+│   ├── api/tests/                        # API test suite
+│   └── worker/                           # Evaluation worker
+├── data/synthetic/                       # Synthetic customers, knowledge, places, import example
+├── infra/                                # Dockerfiles and Cloud Build configs
+├── scripts/                              # Local start, seeding, UI tests, HTTP validation
+│   └── gcp/                              # Provisioning and deployment
+└── docs/                                 # Product, architecture, design, deploy
+```
 
 ---
 
-## Repository Layout
+## Run locally
 
-```
-apps/web/            Next.js 14 + React + TypeScript frontend
-services/api/        FastAPI API, SQLAlchemy models, Alembic migrations, tests
-services/worker/     Evaluation job worker
-data/synthetic/      Synthetic fixtures (customers, prospects, knowledge, evaluation cases)
-infra/               Dockerfiles and Cloud Build configs
-scripts/             Local launcher, seeding, type generation, checks, scripts/gcp deployment
-docs/                Product, architecture, design, and deployment documentation
-```
-
----
-
-## Run Locally
-
-Requirements: Python 3.11+, Node.js 20+, PostgreSQL 16+ binaries (Postgres.app or `brew install postgresql@17`). The project-local server needs no setup: `scripts/dev_db.sh` creates and starts it on demand.
+Needs Python 3.11+, Node.js 20+ and PostgreSQL 16+ binaries.
 
 ```bash
 python3 -m venv .venv
 ./.venv/bin/pip install -r requirements-dev.txt -r requirements-google.txt
 npm --prefix apps/web ci
-gcloud auth application-default login   # live Gemini; see "Use Gemini"
-./scripts/start_local.sh          # production build; or ./scripts/dev_local.sh for hot reload
+NEXTRM_AI_PROVIDER=local ./scripts/start_local.sh   # offline; answers labelled SIMULATED
 ```
 
-The launcher starts the project-local PostgreSQL (`scripts/dev_db.sh`, data in `runtime/postgres`), dumps any existing local database to `runtime/backups`, applies migrations, seeds synthetic data, then starts the API, worker and web on loopback. Open <http://localhost:3000/demo> and choose an account:
+Open <http://localhost:3000/demo>. For live Gemini, run `gcloud auth application-default login` and drop `NEXTRM_AI_PROVIDER=local`. For hot reload while developing, add `NEXTRM_WEB_MODE=dev`. Deploying to Google Cloud is covered in [docs/DEPLOY.md](docs/DEPLOY.md).
 
-| Account | Role | Opens |
-|---|---|---|
-| **Dina** | Customer | Phone assistant and insights |
-| **Maya** | RM | Home, existing customers, acquisition |
-| **Arif** | Institution AI admin | Quality monitoring, governance, coverage |
-| **Intan** | Quality reviewer | Quality monitoring with explicit content grant |
-
-The `/demo` chooser exists only in synthetic demo mode and is rejected in production.
-
-### Use Gemini
-
-The quick start above already selects live Gemini. To choose another model or region:
+## Verify
 
 ```bash
-GOOGLE_CLOUD_PROJECT=<project> GOOGLE_CLOUD_LOCATION=asia-southeast1 GEMINI_MODEL=gemini-3.5-flash ./scripts/start_local.sh
+./.venv/bin/pytest -q                              # 315 API tests on PostgreSQL
+./.venv/bin/python scripts/validate_account_http.py  # 151 end-to-end HTTP checks
+./.venv/bin/python scripts/top10_questions.py --live --show  # top 10 customer questions, graded
 ```
 
-`start_local.sh` uses live Gemini on Vertex AI by default (`gemini-3.5-flash`, `asia-southeast1`, thinking `low`) with the project from `GOOGLE_CLOUD_PROJECT`, `GCP_PROJECT_ID` or `gcloud config`, after `gcloud auth application-default login`. It stops with an error when no project is set. For an offline run set `NEXTRM_AI_PROVIDER=local` explicitly; every answer is then labelled `Simulated`.
+## Scope
 
-### Use Google Maps Platform
-
-```bash
-NEXTRM_POI_PROVIDER=google GOOGLE_MAPS_SERVER_KEY=<places-key> \
-GOOGLE_MAPS_BROWSER_KEY=<maps-js-key> GOOGLE_MAPS_MAP_ID=<map-id> ./scripts/start_local.sh
-```
-
-Without a browser key the acquisition page says Google Maps is not configured and keeps the list, search and actions usable. With `NEXTRM_POI_PROVIDER=google` and no server key, nearby search returns HTTP 503 instead of silently using synthetic data.
-
----
-
-## Checks
-
-```bash
-./scripts/check.sh        # only the checks affected by edits since the last passing run, in parallel
-./scripts/check.sh --all  # everything, plus the production build and the end-to-end HTTP flow
-./.venv/bin/pytest -q     # all API tests on 6 parallel workers; add -n0 for one process, e.g. -n0 -k name
-```
-
-Tests run on PostgreSQL, the production engine. A run applies the Alembic migrations and the synthetic seed once, clones that database per worker and wraps each test in a transaction that is rolled back, so the whole API suite takes about half a minute. `scripts/dev_db.sh gc` removes databases left behind by an interrupted run.
-
----
-
-## Deploy the Public Demo to Google Cloud
-
-```bash
-GCP_PROJECT_ID=<project> GCP_REGION=asia-southeast1 GEMINI_MODEL=gemini-3.5-flash \
-GEMINI_LOCATION=asia-southeast1 GEMINI_THINKING_LEVEL=minimal GEMINI_THINKING_LEVEL_FALLBACK=low \
-GOOGLE_MAPS_BROWSER_KEY=<maps-js-key> ./scripts/gcp/deploy-demo.sh
-```
-
-The first run enables the required APIs, creates Artifact Registry, two service accounts and the Cloud SQL instance (`scripts/gcp/provision-sql.sh`: PostgreSQL 17, daily backups, point-in-time recovery, deletion protection), grants the API account `roles/aiplatform.user` and `roles/cloudsql.client`, then deploys:
-
-- `nextrm-api`: private Cloud Run service (only the web service account can invoke it), one to three instances sharing one Cloud SQL database. The Cloud Run job `nextrm-db-setup` migrates and seeds before a new API revision takes traffic; the API never migrates at startup, and conversations and RM requests persist across deploys. The evaluation worker runs beside the API (`scripts/gcp/demo-api-entrypoint.sh`).
-- `nextrm-web`: public Cloud Run service with the `/demo` account chooser. It signs each API call with its Google service identity.
-
-Later runs are fast: images are tagged by content hash, unchanged services are skipped, and the API and web pipelines run in parallel (web only 100 s, API only 90 s, already-built images 32 s; the original script took 377 s). Verify with `./.venv/bin/python scripts/gcp/smoke_demo.py <web-url>` and `./.venv/bin/python scripts/top10_questions.py --url <web-url>`, then restore pristine demo data with `scripts/gcp/reset-demo-data.sh --yes`. Cloud SQL bills hourly while it exists: [docs/DEPLOY.md](docs/DEPLOY.md) covers cost, backups, rollback and teardown.
-
-The production path (`scripts/gcp/deploy.sh`) instead uses Firebase Authentication and disables the demo chooser.
-
----
-
-## Status and Limits
-
-- Bank customers, accounts, transactions, prospects, activity events and the default POI dataset are **synthetic**.
-- NextRM prepares RM work only. Loan assessment, product opening, approvals, payments and reconciliation belong to the bank's other systems; product links are navigation, not completion.
-- Outreach is draft-only. No message is sent to a customer or prospect.
-
----
+All customers, accounts, transactions, prospects and places are synthetic. NextRM prepares the RM's work; loans, approvals, payments and account opening stay in the bank's own systems. No message is ever sent to a customer, because outreach is a draft for the RM.
 
 ## Documentation
 
-- [docs/PRODUCT.md](docs/PRODUCT.md): Product requirements, personas, and operational boundaries
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): System components, active data model, API surface, AI adapter, and status
-- [docs/DESIGN.md](docs/DESIGN.md): Design system, visual tokens, surface layouts, and accessibility
-- [docs/DEPLOY.md](docs/DEPLOY.md): Local development, environment variables, demo deploy, and production path
-- [AGENTS.md](AGENTS.md): Repository implementation contract and engineering rules
+| File | Covers |
+|---|---|
+| [docs/PRODUCT.md](docs/PRODUCT.md) | Product requirements, personas, and operational boundaries |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System components, active data model, API surface, AI adapter, and status |
+| [docs/DESIGN.md](docs/DESIGN.md) | Design system, visual tokens, surface layouts, and accessibility |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Local development, environment variables, demo deploy, and production path |
+| [AGENTS.md](AGENTS.md) | Repository implementation contract and engineering rules |

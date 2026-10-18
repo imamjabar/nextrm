@@ -250,7 +250,7 @@ NextRM supports two distinct identity architectures:
 
 ### 1. Synthetic Demo Mode (`AUTH_PROVIDER=synthetic_demo`)
 - Active during local development and on public evaluation deployments.
-- Accessed via `/demo`, where evaluators select one of four predefined personas: Dina (Customer), Maya (RM), Arif (AI Admin), or Intan (Quality Reviewer).
+- Accessed via `/demo`, where evaluators choose Dina (Customer), Maya (RM) or Arif (AI Admin). Customers switch between Dina, Aditya and Nabila from the header. The quality reviewer (`usr-quality`) is seeded for content-grant tests and is not offered on `/demo`.
 - The selected persona is stored in client session storage. The Next.js server-side proxy sets identity headers forwarded to the FastAPI backend.
 - The `/demo` chooser is rejected when `ENVIRONMENT=production` and `NEXTRM_DEMO_MODE=false`.
 

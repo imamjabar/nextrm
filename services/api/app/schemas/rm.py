@@ -13,7 +13,7 @@ class RMParty(BaseModel):
 class RMParties(BaseModel):
     parties:list[RMParty]
 class RMSignal(BaseModel):
-    id:str;party_id:str;name:str;category:str;urgency:str;evidence:str;workflow:str;review:str;title:str;need:str;rationale:str;uncertainty:str;confirmed:bool;version:int;source_id:str;turn_id:str|None;created_at:str;display_label:str;contact:str
+    id:str;party_id:str;name:str;category:str;urgency:str;evidence:str;workflow:str;review:str;title:str;need:str;rationale:str;uncertainty:str;confirmed:bool;version:int;source_id:str;turn_id:str|None;created_at:str;display_label:str;contact:str;origin:Literal['CHAT','APP','INSIGHT','EVENT'];group:Literal['PROBLEM','READY','ASKED','SPOTTED']
 class RMSignals(BaseModel):
     signals:list[RMSignal];parties:list[RMParty]
 class RMProspect(BaseModel):
@@ -336,3 +336,16 @@ class RMPoiMatchReview(StrictRM):
     decision:Literal['CONFIRM_EXISTING','NOT_A_CUSTOMER']
     customer_id:str|None=None
     reason:str=Field(min_length=3,max_length=800)
+
+class RMFeedItem(BaseModel):
+    id:str;kind:Literal['CHAT','APP'];party_id:str;name:str;at:str;title:str;text:str;topic:str;signal_id:str|None=None;mode:str
+class RMTodayNeed(BaseModel):
+    signal:RMSignal;quote:str|None=None
+class RMTodayCustomer(BaseModel):
+    party:RMParty;open_needs:int;last_activity_at:str|None=None;last_topic:str|None=None
+class RMTodayCounts(BaseModel):
+    customers:int;needs_open:int;needs_to_review:int;urgent_service:int;followups_open:int;followups_overdue:int;prospects_ready:int;conversations_today:int
+class RMToday(BaseModel):
+    generated_at:str;rm_name:str;counts:RMTodayCounts;queue:list[RMTodayNeed];activity:list[RMFeedItem];followups:list[RMJourney];prospects:list[RMProspect];customers:list[RMTodayCustomer];provider:str;provider_ready:bool;method:str
+class RMPartySnapshot(BaseModel):
+    party_id:str;available:bool;insights:list[RMInsight];conversations:list[RMFeedItem];method:str

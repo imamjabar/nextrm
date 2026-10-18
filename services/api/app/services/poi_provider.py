@@ -108,6 +108,48 @@ class SyntheticProvider:
         )
 
         candidates = query.all()
+        if not candidates and not q and not place_type:
+            cos_f = max(math.cos(math.radians(lat)), 0.01)
+            templates = [
+                ("apotek-sehat", "Apotek Medika Sejahtera", "pharmacy", "Kav. Komersial No. 12", 4.8, 184, "NEW_LEAD", None, [], 140, 70),
+                ("distribusi-mitra", "CV Mitra Distribusi Mandiri", "wholesaler", "Ruko Sentra Niaga Blok B-5", 4.6, 92, "NEW_LEAD", None, [], -210, 180),
+                ("klinik-pratama", "Klinik Medika Pratama", "pharmacy", "Jl. Boulevard Utama No. 8", 4.7, 210, "POSSIBLE_MATCH", Decimal("0.85"), ["Name closely matches regional healthcare merchant", "Masked phone matches authorized business directory"], 290, -220),
+                ("toko-bangunan", "Toko Bangunan Jaya Abadi", "hardware_store", "Sentra Bisnis No. 44", 4.5, 67, "NEW_LEAD", None, [], -420, -290),
+                ("kopi-nusantara", "Kopi Nusantara & Roastery", "cafe", "Plaza Komersial Ground Floor", 4.9, 340, "NEW_LEAD", None, [], 110, 440),
+                ("restoran-selera", "Restoran Selera Minang Baru", "restaurant", "Jl. Protokol Kav. 18", 4.4, 158, "NEW_LEAD", None, [], -360, 580),
+                ("supermarket-fresh", "Supermarket Rejeki Segar", "supermarket", "Sentra Belanja Blok A-1", 4.3, 125, "EXISTING_CUSTOMER", None, [], 540, -380),
+                ("digital-solusi", "PT Digital Solusi Utama", "consulting", "Gedung Sentra Niaga Lt. 3", 4.7, 48, "NEW_LEAD", None, [], -580, -480),
+            ]
+            loc_key = f"{round(lat, 3):.3f}_{round(lng, 3):.3f}"
+            for slug, name, ptype, addr_suf, rating, r_cnt, m_status, m_score, m_reasons, dx, dy in templates:
+                p_lat = lat + (dy / 111000.0)
+                p_lng = lng + (dx / (111000.0 * cos_f))
+                p_id = f"poi-{user.tenant_id}-dyn-{slug}-{loc_key}"
+                poi = db.query(PoiPlace).filter_by(id=p_id, tenant_id=user.tenant_id).first()
+                if not poi:
+                    poi = PoiPlace(
+                        id=p_id,
+                        tenant_id=user.tenant_id,
+                        provider="SYNTHETIC_DATASET",
+                        provider_place_id=f"synthetic:dyn-{slug}-{loc_key}",
+                        name=name,
+                        primary_type=ptype,
+                        address=f"{addr_suf}, Area ({lat:.3f}, {lng:.3f})",
+                        latitude=Decimal(f"{p_lat:.6f}"),
+                        longitude=Decimal(f"{p_lng:.6f}"),
+                        phone_masked="0812-****-3321",
+                        website=f"https://{slug}.example.invalid",
+                        rating=Decimal(str(rating)),
+                        rating_count=r_cnt,
+                        match_status=m_status,
+                        match_score=m_score,
+                        match_reasons_json=json.dumps(m_reasons),
+                        attribution=SYNTHETIC_ATTRIBUTION,
+                        fetched_at=utc_now()
+                    )
+                    db.add(poi)
+                candidates.append(poi)
+            db.commit()
 
         matching_with_dist = []
         for p in candidates:

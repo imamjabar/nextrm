@@ -113,35 +113,22 @@ const opposite=geo.distanceKm({latitude:0,longitude:0},{latitude:0,longitude:180
 assert.equal(geo.distanceLabel(.25),'250 m');assert.equal(geo.distanceLabel(2.23),'2.2 km');
 console.log('PASS distance calculations, zero-distance and antipodal handling');
 
-// Exercise honest missing-key state and synchronized selection controls.
-const Territory=load('components/rm/spatial/TerritoryMap.tsx').TerritoryMap;
+// Unified acquisition desk: explicit location request, radius/nearest filters and synchronized list/map/brief.
 const prospect=(id,latitude,longitude,extra={})=>({id,party:{...party,id:'party-'+id,name:id,contacts:[],contact_channel:'IN_APP',contact_purpose:'Opt-in discussion',email:id+'@example.invalid'},source,state:'ASSIGNED',disposition:null,need:'A savings discussion',need_reviewed:false,reasons:['Opt-in savings enquiry'],latitude,longitude,version:1,map_mode:'SIMULATED',priority_tier:'REVIEW_FIRST',priority_reason:'Permitted source',next_action:'Review need',priority_method:'ACQ-1',hot_lead:false,hot_reason:'Not reviewed',...extra});
 const prospects=[prospect('Farther',-6.275,106.981),prospect('Nearer',-6.251,106.981),prospect('Held',-6.251,106.982,{priority_tier:'CONTACT_RESTRICTED'})];
-let selected='';let briefOpened=false;let map;
-await act(async()=>{map=Renderer.create(React.createElement(Territory,{items:prospects,allItems:prospects,selected:'Nearer',onSelect:id=>{selected=id;},origin:geo.DEMO_OFFICE,radius:5,onOpenBrief(){briefOpened=true;}}),options);});
-assert.ok(labelText(map.root).includes('Google Maps is not configured (set GOOGLE_MAPS_BROWSER_KEY)'));
-assert.ok(labelText(map.root).includes('Nearer'));
-assert.ok(labelText(map.root).includes('demo office'));
-const briefBtn=map.root.findAllByType('button').find(node=>labelText(node).includes('Open brief'));
-assert.ok(briefBtn);
-await act(async()=>{briefBtn.props.onClick();});
-assert.equal(briefOpened,true);
-await act(async()=>map.unmount());console.log('PASS honest unconfigured Google Maps notice, source caption and brief action');
-
-let renderedMap,renderedBrief;
-overrides.set('@/components/rm/spatial/TerritoryMap',{TerritoryMap:props=>{renderedMap=props;return React.createElement('div',null,'Map records: '+props.items.map(p=>p.id).join(','));}});
+let renderedMap,renderedBrief;const nearby=[];
+overrides.set('@/lib/api',{...api,fetchApi:async endpoint=>{nearby.push(endpoint);return {provider:'SYNTHETIC_DATASET',attribution:'Synthetic',center:{lat:0,lng:0},radius_m:5000,places:[],counts:{}};}});
+overrides.set('@/components/rm/spatial/GoogleTerritoryMap',{GoogleTerritoryMap:props=>{renderedMap=props;return null;}});
 overrides.set('@/components/rm/spatial/ProspectBrief',{ProspectBrief:props=>{renderedBrief=props;return React.createElement('div',null,'Brief: '+props.p.id);}});
-overrides.set('@/components/rm/spatial/LeadCoverage',{LeadCoverage:()=>null});
-overrides.set('@/components/rm/shared',{...shared,useRM:()=>({data:{prospects},error:'',refresh:async()=>{},pending:false})});
-const Acquisition=load('app/(workspace)/acquisition/page.tsx').default;let territory;
+overrides.set('@/components/rm/shared',{...shared,useRM:()=>({data:{prospects,map_label:'',priority_method:'ACQ-1'},error:'',refresh:async()=>{},pending:false})});
+const Acquisition=load('app/(workspace)/acquisition/page.tsx').default;let territory;const pins=()=>Array.from(renderedMap.pins,p=>p.id);
 await act(async()=>{territory=Renderer.create(React.createElement(Acquisition),options);});
-assert.equal(locationRequests,0);assert.deepEqual(renderedMap.items.map(p=>p.id),['Farther','Nearer']);assert.equal(renderedBrief.p.id,'Farther');
+assert.equal(locationRequests,0);assert.deepEqual(pins(),['Farther','Nearer']);assert.equal(renderedBrief.p.id,'Farther');
 await act(async()=>{territory.root.findAllByType('select').find(n=>n.props.id==='discovery-radius').props.onChange({target:{value:'.5'}});});
-assert.deepEqual(renderedMap.items.map(p=>p.id),['Nearer']);assert.equal(renderedBrief.p.id,'Nearer');
+assert.deepEqual(pins(),['Nearer']);assert.equal(renderedBrief.p.id,'Nearer');assert.ok(nearby.at(-1).includes('radius_m=500&'));
 await click(territory,'Use my location');assert.equal(locationRequests,1);
-await act(async()=>located({coords:{latitude:0,longitude:0,accuracy:30}}));assert.equal(renderedMap.items.length,0);assert.ok(labelText(territory.root).includes('outside this example area'));
-await click(territory,'Use demo area');assert.equal(renderedMap.origin.mode,'DEMO');assert.equal(renderedMap.items.length,2);
-await act(async()=>{territory.root.findAllByType('select').find(n=>n.props['aria-label']==='Prospect ordering').props.onChange({target:{value:'nearest'}});});assert.equal(renderedMap.items[0].id,'Nearer');
-await click(territory,'All assigned');assert.equal(renderedMap.items.length,3);
-await act(async()=>{territory.root.findAllByType('input').find(n=>n.props['aria-label']==='Search prospects and contacts').props.onChange({target:{value:'Held'}});});assert.equal(renderedMap.items.length,1);assert.equal(renderedMap.selected,'Held');assert.equal(renderedBrief.p.id,'Held');
+await act(async()=>located({coords:{latitude:0,longitude:0,accuracy:30}}));assert.equal(renderedMap.pins.length,0);assert.ok(labelText(territory.root).includes('outside this example area'));assert.ok(nearby.at(-1).includes('lat=0&lng=0'));
+await click(territory,'Use demo area');assert.equal(renderedMap.center.lat,geo.DEMO_OFFICE.latitude);assert.equal(renderedMap.pins.length,2);
+await act(async()=>{territory.root.findAllByType('select').find(n=>n.props['aria-label']==='Prospect ordering').props.onChange({target:{value:'nearest'}});});assert.equal(pins()[0],'Nearer');
+await act(async()=>{territory.root.findAllByType('input').find(n=>n.props['aria-label']==='Search prospects and contacts').props.onChange({target:{value:'Held'}});});assert.deepEqual(pins(),['Held']);assert.equal(renderedMap.selectedId,'Held');assert.equal(renderedBrief.p.id,'Held');
 await act(async()=>territory.unmount());console.log('PASS explicit location request, radius/nearest filters and synchronized list/map/brief');

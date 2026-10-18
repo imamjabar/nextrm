@@ -8,14 +8,22 @@ export const DEMO_ACCOUNTS=[
   {id:'usr-maya',name:'Maya Putri',role:'RM',title:'Relationship manager',description:'Existing relationships, prospect acquisition and RM follow-up.',tenant:'demo-bank'},
   {id:'usr-aiadmin',name:'Arif',role:'INSTITUTION_AI_ADMIN',title:'AI administrator',description:'AI monitoring, model traces, evaluation results and system health.',tenant:'demo-bank'},
 ] as const;
+export const DEMO_CUSTOMERS=[
+  {id:'usr-dina',name:'Dina Rahma',role:'CUSTOMER',title:'Customer',persona:'Teacher · everyday saver',story:'Saving for school fees. A loan application hit an error in the app.',tenant:'demo-bank'},
+  {id:'usr-aditya',name:'Aditya Pratama',role:'CUSTOMER',title:'Customer',persona:'Engineer · affluent investor',story:'Term deposit matures soon. Holds a diversified portfolio.',tenant:'demo-bank'},
+  {id:'usr-nabila',name:'Nabila Aulia',role:'CUSTOMER',title:'Customer',persona:'Freelance designer · variable income',story:'Waiting for a new debit card. Saving for a work laptop.',tenant:'demo-bank'},
+] as const;
 export const DEMO_REVIEWER={id:'usr-quality',name:'Intan',role:'QUALITY_REVIEWER',title:'Authorized quality reviewer',description:'Separately granted conversation content review.',tenant:'demo-bank'} as const;
-const all=[...DEMO_ACCOUNTS,DEMO_REVIEWER];
+type DemoEntry={readonly id:string;readonly name:string;readonly role:string;readonly title:string;readonly tenant:string;readonly description?:string;readonly persona?:string;readonly story?:string};
+const rawAll:readonly DemoEntry[]=[...DEMO_ACCOUNTS,...DEMO_CUSTOMERS,DEMO_REVIEWER];
+const all:readonly DemoEntry[]=rawAll.filter((a,i,arr)=>arr.findIndex(x=>x.id===a.id)===i);
 export function restoreDemoAccount(){
   const saved=sessionStorage.getItem(DEMO_ACCOUNT_KEY);
   const account=all.find(a=>a.id===saved);
   setTokenProvider(undefined);
   setUserContext(account?{userId:account.id,tenantId:account.tenant,role:account.role}:{userId:'',tenantId:''});
 }
+export function switchDemoCustomer(id:string){const account=DEMO_CUSTOMERS.find(a=>a.id===id);if(!account)throw new Error('Choose an available demo account.');sessionStorage.setItem(DEMO_ACCOUNT_KEY,account.id);setTokenProvider(undefined);setUserContext({userId:account.id,tenantId:account.tenant,role:account.role});}
 export async function enterDemoAccount(id:string){
   const config=await getAppConfig();
   if(!config.demoMode||config.authProvider!=='synthetic_demo')throw new Error('Synthetic demo accounts are unavailable. Use your provisioned sign-in.');

@@ -1,7 +1,6 @@
 """Explicit repeat-safe, synthetic person/business fixtures. No production sourcing."""
 import hashlib,json
 from pathlib import Path
-from datetime import datetime,timezone
 from ..models.entities import InstitutionModel,UserAssignmentModel
 from ..models.relationships import Party,ContactLink,Source,Prospect,Signal,QualityGrant,Nudge
 ROOT=Path(__file__).resolve().parents[4]
@@ -21,7 +20,7 @@ def seed_relationships(db):
                 db.add(Party(id=pid,tenant_id=tenant,kind=kind,name=name,segment=segment,owner_id=owner,relationship=relationship,identity=identity,contact=contact,locality=locality,customer_ref=('C-'+key if relationship=='EXISTING_CUSTOMER' else None),context_json=json.dumps(ctx)))
             return pid
         dina=party('DINA','Dina Rahma',extra={'occupation':'Teacher','declared_goal':'Preparing for school expenses','notes':'Internal RM note: discuss only the need the customer confirms.'})
-        aditya=party('ADITYA','Aditya Pratama',locality='Jakarta Selatan',extra={'occupation':'Engineer','products':['Everyday savings','Term deposit'],'declared_goal':'Liquidity planning','maturity_date':'2026-10-15'})
+        aditya=party('ADITYA','Aditya Pratama',locality='Jakarta Selatan',extra={'occupation':'Engineer','products':['Everyday savings','Term deposit'],'declared_goal':'Liquidity planning','maturity_date':'2026-10-30'})
         nabila=party('NABILA','Nabila Aulia',locality='Tangerang',extra={'occupation':'Designer','declared_goal':'Keep everyday banking simple'})
         org=party('SINAR','PT Sinar Distribusi','ORGANIZATION',segment='BUSINESS',extra={'products':['Business transaction account'],'legacy_case':'CF-026' if tenant=='demo-bank' else None})
         saricontact=party('SARI-CONTACT','Sari Wulandari',relationship='NO_MATCH_IN_AVAILABLE_DATA',segment='BUSINESS_CONTACT',extra={'occupation':'Finance manager','products':[],'notes':''})
@@ -69,11 +68,11 @@ def seed_relationships(db):
             if not db.get(Prospect,sid(tenant,key)):
                 matched=pid==org
                 db.add(Prospect(id=sid(tenant,key),tenant_id=tenant,party_id=pid,source_id=src,owner_id=owner,state='ASSIGNED',disposition='EXISTING_CUSTOMER' if matched else None,latitude=str(lat),longitude=str(lng),reasons_json=json.dumps(reasons),need=need,import_key='synthetic-v1-'+key))
-        for key,pid,title,need,category,urgency in [('S-MATURITY',aditya,'Term deposit maturity approaching','Customer goal and upcoming liquidity needs are not yet confirmed.','GUIDANCE','TIME_SENSITIVE'),('S-CARD',nabila,'Customer requests card-delivery help','I would like help checking the status of my card delivery.','SERVICE_ISSUE','ROUTINE')]:
+        for key,pid,title,need,category,urgency in [('S-MATURITY',aditya,'Term deposit maturity approaching','Customer goal and upcoming liquidity needs are not yet confirmed.','GUIDANCE','TIME_SENSITIVE')]:
             src=source(key+'-SRC',pid,'Synthetic authorized event / customer note',need,'SYNTHETIC_CUSTOMER_EVENT')
             if not db.get(Signal,sid(tenant,key)):db.add(Signal(id=sid(tenant,key),tenant_id=tenant,party_id=pid,source_id=src,owner_id=owner,semantic_key=key,category=category,urgency=urgency,evidence='OBSERVED',title=title,need=need,rationale='Authorized synthetic event needs an appropriate RM response.',uncertainty='Further details and customer preferences require confirmation.'))
         if tenant=='demo-bank':
-            for uid,name,role,entity in [('usr-dina','Dina Rahma','CUSTOMER',dina),('usr-quality','Intan · Quality reviewer','QUALITY_REVIEWER',None),('usr-aiadmin','Arif · AI operations','INSTITUTION_AI_ADMIN',None)]:
+            for uid,name,role,entity in [('usr-dina','Dina Rahma','CUSTOMER',dina),('usr-aditya','Aditya Pratama','CUSTOMER',aditya),('usr-nabila','Nabila Aulia','CUSTOMER',nabila),('usr-quality','Intan · Quality reviewer','QUALITY_REVIEWER',None),('usr-aiadmin','Arif · AI operations','INSTITUTION_AI_ADMIN',None)]:
                 if not db.query(UserAssignmentModel).filter_by(user_id=uid,tenant_id=tenant).first():db.add(UserAssignmentModel(id='ua-'+uid,user_id=uid,name=name,email=uid+'@example.invalid',role=role,tenant_id=tenant,entity_id=entity,active=True))
                 if role in {'QUALITY_REVIEWER','INSTITUTION_AI_ADMIN'} and not db.query(QualityGrant).filter_by(tenant_id=tenant,user_id=uid).first():db.add(QualityGrant(id=sid(tenant,'GRANT-'+uid),tenant_id=tenant,user_id=uid,content=role=='QUALITY_REVIEWER',party_scope_json=json.dumps([dina,aditya,nabila]),purpose='Explicit synthetic-demo evaluation/content review' if role=='QUALITY_REVIEWER' else 'Institution-scoped health and evaluation metadata'))
     from .enrichment import seed_enrichment

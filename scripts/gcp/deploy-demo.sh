@@ -117,7 +117,7 @@ deploy_api() {
     --service-account="$API_SA" --no-allow-unauthenticated --ingress=all \
     --command=/app/scripts/gcp/demo-api-entrypoint.sh --set-cloudsql-instances="$CONNECTION" \
     --set-env-vars="$env" --set-secrets="$secrets" --port=8000 --cpu=1 --memory=1Gi --cpu-boost \
-    --min-instances="${API_MIN_INSTANCES:-0}" --max-instances=3 --no-cpu-throttling --concurrency=20 --timeout=60 --update-labels="nextrm_db=${DB_TAG}" --quiet
+    --min-instances="${API_MIN_INSTANCES:-1}" --max-instances=3 --no-cpu-throttling --concurrency=20 --timeout=60 --update-labels="nextrm_db=${DB_TAG}" --quiet
   if [[ "$SETUP_RAN" == 1 ]]; then
     gcloud run services add-iam-policy-binding nextrm-api --project="$P" --region="$R" --member="serviceAccount:${WEB_SA}" --role=roles/run.invoker --quiet >/dev/null
   fi
@@ -126,14 +126,14 @@ deploy_web() {
   gcloud run deploy nextrm-web --project="$P" --region="$R" --image="$WEB_IMAGE" \
     --service-account="$WEB_SA" --allow-unauthenticated \
     --set-env-vars="API_INTERNAL_URL=$1,NEXTRM_DEMO_MODE=true,NEXTRM_AUTH_PROVIDER=synthetic_demo,GOOGLE_MAPS_BROWSER_KEY=${GOOGLE_MAPS_BROWSER_KEY},GOOGLE_MAPS_MAP_ID=${GOOGLE_MAPS_MAP_ID}" \
-    --port=3000 --cpu=1 --memory=512Mi --min-instances=0 --max-instances=3 --quiet
+    --port=3000 --cpu=1 --memory=512Mi --min-instances="${WEB_MIN_INSTANCES:-1}" --cpu-boost --max-instances=3 --quiet
 }
 api_pipeline() { if [[ "$NEED_API" == 1 ]]; then build_api; fi; deploy_api; }
 web_pipeline() { if [[ "$NEED_WEB" == 1 ]]; then build_web; fi; deploy_web "$API_URL"; }
 
 stage 'hashing sources'
 API_TAG="$(hash_tree requirements.txt requirements-google.txt alembic.ini infra/Dockerfile.api services data scripts/seed_demo.py scripts/gcp/demo-api-entrypoint.sh scripts/gcp/db-setup.sh)"
-DB_TAG="$(hash_tree alembic.ini services/api/migrations services/api/app/models services/api/app/core/seeder.py services/api/app/services/rm_seed.py services/api/app/services/bank_seed.py data scripts/seed_demo.py scripts/gcp/db-setup.sh)"
+DB_TAG="$(hash_tree alembic.ini services/api/migrations services/api/app/models services/api/app/core/seeder.py services/api/app/services/rm_seed.py services/api/app/services/bank_seed.py services/api/app/services/customer_activity.py services/api/app/services/demo_story.py data scripts/seed_demo.py scripts/gcp/db-setup.sh)"
 WEB_TAG="$(hash_tree apps/web infra/Dockerfile.web infra/Dockerfile.web-prebuilt)"
 API_IMAGE="${PREFIX}/api:${API_TAG}"; WEB_IMAGE="${PREFIX}/web:${WEB_TAG}"
 

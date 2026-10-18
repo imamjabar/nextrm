@@ -382,6 +382,18 @@ export interface RMEvalRun {
 export interface RMEvalStart {
   request_key: string;
 }
+export interface RMFeedItem {
+  id: string;
+  kind: "CHAT" | "APP";
+  party_id: string;
+  name: string;
+  at: string;
+  title: string;
+  text: string;
+  topic: string;
+  signal_id?: string | null;
+  mode: string;
+}
 export interface RMFeedbackReceipt {
   id: string;
   action: string;
@@ -585,6 +597,13 @@ export interface RMPartyDetail {
   review_history: Array<RMReviewHistory>;
   internal_note?: string | null;
 }
+export interface RMPartySnapshot {
+  party_id: string;
+  available: boolean;
+  insights: Array<RMInsight>;
+  conversations: Array<RMFeedItem>;
+  method: string;
+}
 export interface RMPoiCenter {
   lat: number;
   lng: number;
@@ -785,6 +804,8 @@ export interface RMSignal {
   created_at: string;
   display_label: string;
   contact: string;
+  origin: "CHAT" | "APP" | "INSIGHT" | "EVENT";
+  group: "PROBLEM" | "READY" | "ASKED" | "SPOTTED";
 }
 export interface RMSignals {
   signals: Array<RMSignal>;
@@ -804,6 +825,39 @@ export interface RMSource {
 export interface RMStartJourney {
   base_version: number;
   request_key: string;
+}
+export interface RMToday {
+  generated_at: string;
+  rm_name: string;
+  counts: RMTodayCounts;
+  queue: Array<RMTodayNeed>;
+  activity: Array<RMFeedItem>;
+  followups: Array<RMJourney>;
+  prospects: Array<RMProspect>;
+  customers: Array<RMTodayCustomer>;
+  provider: string;
+  provider_ready: boolean;
+  method: string;
+}
+export interface RMTodayCounts {
+  customers: number;
+  needs_open: number;
+  needs_to_review: number;
+  urgent_service: number;
+  followups_open: number;
+  followups_overdue: number;
+  prospects_ready: number;
+  conversations_today: number;
+}
+export interface RMTodayCustomer {
+  party: RMParty;
+  open_needs: number;
+  last_activity_at?: string | null;
+  last_topic?: string | null;
+}
+export interface RMTodayNeed {
+  signal: RMSignal;
+  quote?: string | null;
 }
 export interface RMTool {
   name: string;

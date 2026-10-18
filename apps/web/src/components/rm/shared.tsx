@@ -2,13 +2,26 @@
 import React,{useEffect,useState,useCallback,useRef} from 'react';
 import Link from 'next/link';
 import {fetchApi,subscribeSession,getUserContext,getMutationEpoch} from '@/lib/api';
+import type {UserContext} from '@/lib/api';
 import {Status,Notice,Loading,ErrorState,Empty} from '@/components/ui/Workspace';
 import {dateLabel,label} from '@/lib/presentation';
-import type {RMSource,RMSignal,RMParty,RMJourney} from '@/lib/rm.generated';
+import type {RMSource,RMSignal,RMParty,RMJourney,RMParties} from '@/lib/rm.generated';
+const lastData=new Map<string,unknown>();
+const pendingReads=new Map<string,{epoch:number;promise:Promise<unknown>}>();
+function keyFor(ctx:UserContext,path:string){return `${ctx.userId||''}|${ctx.tenantId||''}|${path}`;}
+function cacheKey(path:string):string{return keyFor(getUserContext(),path);}
+export function prefetchRM(paths:string[],ctx:UserContext=getUserContext()):Promise<unknown[]>{
+ const epoch=getMutationEpoch();
+ return Promise.all(paths.map(path=>{const key=keyFor(ctx,path);if(lastData.has(key))return Promise.resolve(lastData.get(key));const shared=pendingReads.get(key);if(shared&&shared.epoch===epoch)return shared.promise;
+  const promise=fetchApi<unknown>(path,{cache:'no-store'},ctx).then(d=>{if(lastData.size>200)lastData.clear();lastData.set(key,d);return d;}).catch(()=>undefined).finally(()=>{if(pendingReads.get(key)?.promise===promise)pendingReads.delete(key);});
+  pendingReads.set(key,{epoch,promise});return promise;}));
+}
+export function prefetchRelationship(partyId:string){const base='/v1/rm/parties/'+partyId;return prefetchRM([base,base+'/snapshot',base+'/brief',base+'/behavior']);}
+export async function prefetchCustomerHome(ctx:UserContext){const [parties]=await prefetchRM(['/v1/rm/parties'],ctx) as [RMParties|undefined];const p=parties?.parties.find(x=>x.kind==='PERSON'&&x.relationship==='EXISTING_CUSTOMER');if(!p)return;const base='/v1/rm/chat/'+p.id;await prefetchRM([base,base+'/sessions',base+'/engagement',base+'/requests'],ctx);}
 export function useRM<T>(path:string,interval=0){
- const [data,setData]=useState<T|null>(null),[error,setError]=useState(''),[pending,setPending]=useState(false);const generation=useRef(0),alive=useRef(true),inflight=useRef<{epoch:number;path:string;promise:Promise<void>}|null>(null);
- const refresh=useCallback(()=>{const epoch=getMutationEpoch();if(inflight.current?.epoch===epoch&&inflight.current.path===path)return inflight.current.promise;const turn=++generation.current;setPending(true);const promise=fetchApi<T>(path,{cache:'no-store'}).then(d=>{if(alive.current&&turn===generation.current){setData(d);setError('');}}).catch(e=>{if(alive.current&&turn===generation.current)setError(e.message);}).finally(()=>{if(alive.current&&turn===generation.current)setPending(false);if(inflight.current?.promise===promise)inflight.current=null;});inflight.current={epoch,path,promise};return promise;},[path]);
- useEffect(()=>{alive.current=true;setData(null);setError('');refresh();const unsub=subscribeSession(refresh);return()=>{alive.current=false;generation.current++;inflight.current=null;unsub();};},[refresh]);
+ const [data,setData]=useState<T|null>(()=>(lastData.get(cacheKey(path)) as T)??null),[error,setError]=useState(''),[pending,setPending]=useState(false);const generation=useRef(0),alive=useRef(true),inflight=useRef<{epoch:number;path:string;promise:Promise<void>}|null>(null);
+ const refresh=useCallback(()=>{const epoch=getMutationEpoch();if(inflight.current?.epoch===epoch&&inflight.current.path===path)return inflight.current.promise;const turn=++generation.current;const key=cacheKey(path);setPending(true);const shared=pendingReads.get(key);const promise=(shared&&shared.epoch===epoch?shared.promise.then(d=>d===undefined?fetchApi<T>(path,{cache:'no-store'}):d as T):fetchApi<T>(path,{cache:'no-store'})).then(d=>{if(alive.current&&turn===generation.current){if(lastData.size>200)lastData.clear();lastData.set(key,d);setData(d);setError('');}}).catch(e=>{if(alive.current&&turn===generation.current)setError(e.message);}).finally(()=>{if(alive.current&&turn===generation.current)setPending(false);if(inflight.current?.promise===promise)inflight.current=null;});inflight.current={epoch,path,promise};return promise;},[path]);
+ useEffect(()=>{alive.current=true;const c=lastData.get(cacheKey(path)) as T|undefined;if(c!==undefined)setData(c);setError('');refresh();const unsub=subscribeSession(refresh);return()=>{alive.current=false;generation.current++;inflight.current=null;unsub();};},[refresh]);
  useEffect(()=>{if(!interval)return;const timer=setInterval(()=>{if(document.visibilityState==='visible')refresh();},interval);return()=>clearInterval(timer);},[refresh,interval]);
  return {data,error,pending,refresh};
 }

@@ -13,3 +13,9 @@ export function dateLabel(value: unknown): string {
  if(!value)return 'Not available'; const raw=String(value); const timestamp=/^\d{4}-\d{2}-\d{2}[ T]\d{2}:/.test(raw)&&!/(Z|[+-]\d{2}:?\d{2})$/.test(raw)?raw.replace(' ','T')+'Z':raw; const d=new Date(timestamp);
  return Number.isNaN(d.getTime())?'Not available':new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Jakarta'}).format(d);
 }
+export function timeAgo(value: unknown, now = Date.now()): string {
+ if(!value)return 'Not available'; const raw=String(value); const timestamp=/^\d{4}-\d{2}-\d{2}[ T]\d{2}:/.test(raw)&&!/(Z|[+-]\d{2}:?\d{2})$/.test(raw)?raw.replace(' ','T')+'Z':raw; const t=new Date(timestamp).getTime();
+ if(Number.isNaN(t))return 'Not available'; const s=Math.max(0,(now-t)/1000);
+ if(s<60)return 'just now'; if(s<3600)return `${Math.floor(s/60)} min ago`; if(s<86400)return `${Math.floor(s/3600)} h ago`; if(s<172800)return 'Yesterday';
+ return dateLabel(value);
+}

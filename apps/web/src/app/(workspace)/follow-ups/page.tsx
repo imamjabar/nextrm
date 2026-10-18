@@ -7,7 +7,7 @@ import {useRM, RequestState, JourneyLink} from '@/components/rm/shared';
 import type {RMJourneys} from '@/lib/rm.generated';
 
 export default function Followups() {
-  const q = useRM<RMJourneys>('/v1/rm/follow-ups', 2500);
+  const q = useRM<RMJourneys>('/v1/rm/follow-ups', 5000);
   const [view, setView] = useState('open'), [search, setSearch] = useState('');
   const tasks = q.data?.journeys || [];
   const open = tasks.filter(t => !['DONE', 'CANCELLED'].includes(t.status));

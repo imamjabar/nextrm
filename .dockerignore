@@ -13,3 +13,5 @@ runtime
 .env
 .env.*
 services/api/tests
+.impeccable
+notes.txt

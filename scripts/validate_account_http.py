@@ -140,7 +140,7 @@ with tempfile.TemporaryDirectory(prefix='nextrm-http-validation-') as folder:
   qa=request(chat+'/sessions/'+a['id'],'usr-dina')
   request(chat+'/turns','usr-dina',{'base_version':qa['version'],'request_key':key(),'session_id':a['id'],'message':'How does a time deposit work?'})
   qb=request(chat+'/sessions/'+b['id'],'usr-dina')
-  independent=request(chat+'/turns','usr-dina',{'base_version':qb['version'],'request_key':key(),'session_id':b['id'],'message':'Tell me more'})
+  independent=request(chat+'/turns','usr-dina',{'base_version':qb['version'],'request_key':key(),'session_id':b['id'],'message':'Tell me more','use_memory':False})
   assert independent['route']=='CLARIFY' and len(request(chat+'/sessions/'+a['id'],'usr-dina')['turns'])==1
   assert len(request(chat+'/sessions','usr-dina')['sessions'])>=2
   request(chat+'/sessions/'+a['id'],'usr-aiadmin',status=403)

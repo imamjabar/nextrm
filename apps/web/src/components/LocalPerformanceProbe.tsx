@@ -8,7 +8,7 @@ export function LocalPerformanceProbe(){
  const path=usePathname();
  useEffect(()=>{
   let live=true,observer:MutationObserver|undefined,timer:ReturnType<typeof setTimeout>|undefined;
-  const selectors:Record<string,string>={'/workspace':'.desk-summary','/pulse':'.rm-context-strip','/retention':'.rm-primary-section','/acquisition':'.discovery-shortlist','/follow-ups':'.rm-primary-section','/customer/chat':'.phone-bank-header','/settings/ai-quality':'.quality-health'};
+  const selectors:Record<string,string>={'/workspace':'.today-kpis','/pulse':'.rm-context-strip','/retention':'.rm-primary-section','/acquisition':'.acq-list','/follow-ups':'.rm-primary-section','/customer/chat':'.phone-bank-header','/settings/ai-quality':'.quality-health'};
   const selector=selectors[path];if(!selector)return;
   const navigation=performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming|undefined;
   const mounted=performance.now();

@@ -54,8 +54,10 @@ def quality_summary(db,user):
     turns=db.query(Turn).filter_by(tenant_id=user.tenant_id).order_by(Turn.created_at.desc()).limit(100).all()
     if user.role=='RM':turns=[t for t in turns if t.actor_id==user.user_id]
     traces=[];scopes=set(json.loads(grant.party_scope_json));knowledge=kb_for(db,user.tenant_id) if grant.content else {}
+    content_pids={t.party_id for t in turns[:30] if grant.content and t.share and t.party_id in scopes}
+    parties={p.id:p for p in db.query(Party).filter(Party.tenant_id==user.tenant_id,Party.id.in_(content_pids)).all()} if content_pids else {}
     for t in turns[:30]:
-        content=bool(grant.content and t.share and t.party_id in scopes);party=db.query(Party).filter_by(id=t.party_id,tenant_id=user.tenant_id).first() if content else None;out=json.loads(t.output_json)
+        content=bool(grant.content and t.share and t.party_id in scopes);party=parties.get(t.party_id) if content else None;out=json.loads(t.output_json)
         traces.append({'id':t.id,'party_id':t.party_id,'name':party.name if party and content else 'Scoped customer turn','route':t.route,'status':t.status,'mode':t.mode,'model':t.model,'latency_ms':t.latency_ms,'at':stamp(t.created_at),'message':t.message if content else None,'answer':t.answer if content else None,'tools':json.loads(t.tools_json),'sources':[x for x in knowledge.values() if x['id'] in out.get('source_ids',[])] if content else [],'error_code':t.error_code,'content_access':content,'context_source_id':out.get('context_source_id'),'context_source_version':out.get('context_source_version'),'context_source_hash':out.get('context_source_hash'),'prompt_version':out.get('prompt_version','UNKNOWN'),'governance':out.get('governance'),'thinking_level':out.get('thinking_level')})
     runs=db.query(EvaluationRun).filter_by(tenant_id=user.tenant_id).order_by(EvaluationRun.created_at.desc()).limit(6).all()
     current_model=LOCAL_MODEL if provider=='local' else os.getenv('GEMINI_MODEL','')

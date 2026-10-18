@@ -1,5 +1,5 @@
 export type RMPosition = {
-  latitude: number; longitude: number; mode: 'DEMO' | 'DEVICE';
+  latitude: number; longitude: number; mode: 'DEMO' | 'DEVICE' | 'PLACE';
   label: string; accuracy?: number;
 };
 export const DEMO_OFFICE: RMPosition = {latitude: -6.250, longitude: 106.981, mode: 'DEMO', label: 'Bekasi demo office'};

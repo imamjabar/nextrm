@@ -45,11 +45,12 @@ Launches the FastAPI backend with uvicorn reload and Next.js in hot-reloading de
 ```
 
 ### Accessing the Local Demo
-Navigate to <http://localhost:3000/demo> in your browser. Choose an authorized synthetic persona:
-- **Dina Rahma** (`Customer`): Opens the mobile phone banking assistant at `/customer/chat`.
-- **Maya Putri** (`Relationship Manager`): Opens the RM relationship workspace at `/workspace`.
-- **Arif** (`Institution AI Admin`): Opens the governance and AI quality console at `/settings/governance`.
-- **Intan** (`Quality Reviewer`): Opens AI quality monitoring with an explicit content inspection grant.
+Navigate to <http://localhost:3000/demo> in your browser. Choose a synthetic account:
+- **Dina Rahma** (`Customer`): opens the mobile banking assistant at `/customer/chat`. Switch to **Aditya Pratama** or **Nabila Aulia** from the header; each has a different portfolio and story.
+- **Maya Putri** (`Relationship Manager`): opens the RM workspace at `/workspace`.
+- **Arif** (`Institution AI Admin`): opens AI quality at `/settings/ai-quality`, with governance and assignments in the side navigation.
+
+The quality reviewer account (`usr-quality`) is not on `/demo`; it exists for the content-grant checks in `scripts/validate_account_http.py`.
 
 ### Running Local Quality and Verification Checks
 ```bash

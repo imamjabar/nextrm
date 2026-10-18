@@ -15,6 +15,7 @@ from .routers import (
     poi,
     auth,
     copilot,
+    today,
 )
 
 @asynccontextmanager
@@ -49,6 +50,7 @@ app.include_router(rm.router)
 app.include_router(poi.router)
 app.include_router(auth.router)
 app.include_router(copilot.router)
+app.include_router(today.router)
 
 @app.get("/health")
 def health_check():

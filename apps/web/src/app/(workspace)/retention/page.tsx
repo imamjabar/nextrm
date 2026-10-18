@@ -8,7 +8,7 @@ import {useRM, RequestState, SignalRows, PersonName, Mode} from '@/components/rm
 import type {RMSignals} from '@/lib/rm.generated';
 
 export default function Retention() {
-  const q = useRM<RMSignals>('/v1/rm/signals', 2000);
+  const q = useRM<RMSignals>('/v1/rm/signals', 5000);
   const [search, setSearch] = useState(''), [filter, setFilter] = useState('active'), [view, setView] = useState('signals');
   const all = q.data?.signals || [];
   const active = all.filter(s => !['COMPLETED', 'DISMISSED'].includes(s.workflow));

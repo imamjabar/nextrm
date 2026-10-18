@@ -10,6 +10,7 @@ import type {RMEngagementFeed,RMEnrichedNudge} from '@/lib/rm.generated';
 import {Progress,Sparkline,StackBar,TickBars} from './HomeCharts';
 import {PanelView} from './HomePanels';
 import type {StepFocus} from './HomePanels';
+import {CustomerRequests} from './CustomerRequests';
 
 type Open=(panel:Panel,focus?:StepFocus)=>void;
 type TileProps={insights:Insights;open:Open};
@@ -177,7 +178,7 @@ function Shortcut({panel,icon,title,figure,open}:{panel:Panel;icon:ReactNode;tit
   </button>;
 }
 
-export function CustomerInsights({personId,active,compose,viewProduct,onInsights}:{personId:string;active:boolean;compose:(text:string)=>void;viewProduct:(product:'DEPOSIT'|'SAVINGS')=>void;onInsights?:(insights:Insights)=>void}){
+export function CustomerInsights({personId,active,compose,viewProduct,onInsights,rmName}:{personId:string;active:boolean;compose:(text:string)=>void;viewProduct:(product:'DEPOSIT'|'SAVINGS')=>void;onInsights?:(insights:Insights)=>void;rmName?:string}){
   const q=useRM<RMEngagementFeed>(`/v1/rm/chat/${personId}/engagement`),prior=useRef(active);
   const [view,setView]=useState<{panel:Panel;focus?:StepFocus}|null>(null);
   const root=useRef<HTMLElement>(null),title=useRef<HTMLHeadingElement>(null),origin=useRef('');
@@ -199,6 +200,7 @@ export function CustomerInsights({personId,active,compose,viewProduct,onInsights
         <h1 className="sr-only">Your money overview</h1>
         <Hero insights={insights}/>
         <NextSteps insights={insights} nudges={nudges} open={open}/>
+        <CustomerRequests personId={personId} rmName={rmName||'Your RM'}/>
         <h2 className="mvp-section-title">Your money at a glance</h2>
         <div className="mvp-tiles">
           <SpendingTile insights={insights} open={open}/>

@@ -1,8 +1,8 @@
 """Persistent own-customer sessions; legacy turns remain in their original table."""
 import json
-from datetime import datetime,timezone
-from fastapi import APIRouter,Depends,HTTPException,Query
-from sqlalchemy import func,or_,and_
+from datetime import datetime
+from fastapi import APIRouter,Depends,HTTPException
+from sqlalchemy import func,or_,and_,case
 from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.security import CurrentUser,get_current_user
@@ -40,11 +40,12 @@ def data(db,user,s):
 def sessions(pid:str,cursor:str='',db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
     p=party_for(db,user,pid,customer=True);legacy,conv=legacy_for(db,user,p.id)
     q=db.query(ChatSession).filter_by(tenant_id=user.tenant_id,party_id=p.id,actor_id=user.user_id,archived=False)
+    q=q.filter(or_(ChatSession.id.startswith('LEGACY-'),ChatSession.id.in_(db.query(SessionTurn.session_id).filter(SessionTurn.tenant_id==user.tenant_id))))
     if cursor:
         try:time,id=cursor.split('|',1);time=datetime.fromisoformat(time)
         except ValueError:raise HTTPException(422,'Invalid chat-history cursor.')
         q=q.filter(or_(ChatSession.updated_at<time,and_(ChatSession.updated_at==time,ChatSession.id<id)))
-    rows=q.order_by(ChatSession.updated_at.desc(),ChatSession.id.desc()).limit(51).all();result=[data(db,user,s) for s in rows];db.commit()
+    rows=q.order_by(ChatSession.updated_at.desc(),ChatSession.id.desc()).limit(51).all();result=[x for x in [data(db,user,s) for s in rows] if not (x['legacy'] and x['turn_count']==0)];db.commit()
     return {'sessions':sorted(result[:50],key=lambda x:(x['updated_at'],x['id']),reverse=True),'next_cursor':stamp(rows[49].updated_at)+'|'+rows[49].id if len(rows)>50 else None}
 
 @router.get('/chat/{pid}/memory',response_model=RMChatMemory)
@@ -87,8 +88,14 @@ def monitored_sessions(db:Session=Depends(get_db),user:CurrentUser=Depends(get_c
     grant=quality_grant(db,user);scope=json.loads(grant.party_scope_json)
     query=db.query(ChatSession).filter_by(tenant_id=user.tenant_id)
     if scope:query=query.filter(ChatSession.party_id.in_(scope))
-    rows=query.order_by(ChatSession.updated_at.desc(),ChatSession.id.desc()).limit(100).all();result=[]
+    rows=query.order_by(ChatSession.updated_at.desc(),ChatSession.id.desc()).limit(100).all()
+    non_legacy=[s.id for s in rows if not s.id.startswith('LEGACY-')];counts={}
+    if non_legacy:
+        for sid_val,t_cnt,f_cnt in db.query(SessionTurn.session_id,func.count(Turn.id),func.sum(case((Turn.status=='FAILED',1),else_=0))).join(Turn,Turn.id==SessionTurn.id).filter(SessionTurn.tenant_id==user.tenant_id,SessionTurn.session_id.in_(non_legacy)).group_by(SessionTurn.session_id).all():counts[sid_val]=(int(t_cnt or 0),int(f_cnt or 0))
+    result=[]
     for s in rows:
-        turns=turns_query(db,type('Actor',(),{'tenant_id':user.tenant_id,'user_id':s.actor_id})(),s)
-        result.append({'id':s.id,'title':s.title if grant.content else 'Customer conversation','created_at':stamp(s.created_at),'updated_at':stamp(s.updated_at),'turns':turns.count(),'failures':turns.filter(Turn.status=='FAILED').count(),'content_access':grant.content})
+        if s.id.startswith('LEGACY-'):
+            turns=turns_query(db,type('Actor',(),{'tenant_id':user.tenant_id,'user_id':s.actor_id})(),s);t_cnt=turns.count();f_cnt=turns.filter(Turn.status=='FAILED').count()
+        else:t_cnt,f_cnt=counts.get(s.id,(0,0))
+        if t_cnt>0:result.append({'id':s.id,'title':s.title if grant.content else 'Customer conversation','created_at':stamp(s.created_at),'updated_at':stamp(s.updated_at),'turns':t_cnt,'failures':f_cnt,'content_access':grant.content})
     return {'sessions':result,'method':'Latest 100 explicitly scoped session metadata records. Titles remain hidden without content authority; customer content stays in separately granted traces.'}

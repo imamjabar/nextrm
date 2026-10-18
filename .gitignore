@@ -27,3 +27,5 @@ service-account*.json
 .playwright-cli/
 # Personal working notes (contain keys and requests)
 notes.txt
+# Local design critique and live-session artifacts
+.impeccable/

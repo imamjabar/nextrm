@@ -35,6 +35,22 @@ DEMO_USERS = {
         tenant_id="demo-bank",
         institution_type="BANK"
     ),
+    "usr-aditya": CurrentUser(
+        user_id="usr-aditya",
+        name="Aditya Pratama",
+        email="aditya@example.invalid",
+        role="CUSTOMER",
+        tenant_id="demo-bank",
+        institution_type="BANK"
+    ),
+    "usr-nabila": CurrentUser(
+        user_id="usr-nabila",
+        name="Nabila Aulia",
+        email="nabila@example.invalid",
+        role="CUSTOMER",
+        tenant_id="demo-bank",
+        institution_type="BANK"
+    ),
     "usr-quality": CurrentUser(
         user_id="usr-quality",
         name="Intan · Quality reviewer",

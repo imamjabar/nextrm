@@ -90,12 +90,12 @@ Designed for high information density and fast decision-making:
   - **AI Relationship Brief Panel:** Prominently positioned pre-call briefing card. Synthesizes key facts, talking points with clickable source badges, suggested discovery questions, and institutional cautions.
 
 ### 3. RM Acquisition and Territory Desk (`/acquisition`)
-A daylight spatial workspace designed for proactive candidate review:
-- **Three-Column Spatial Layout:**
-  - **Column 1: Candidate Shortlist (`380px` width):** Assigned prospects ranked by inspectable ACQ-1 criteria. Displays company/individual name, industry category, distance from office, why-now rationale, and review status.
-  - **Column 2: Interactive Territory View (Fluid):** Procedurally rendered 3D daylight district scene (built with Three.js) projecting semantic establishment pins onto an illustrative street grid. Synchronized pan/zoom controls and an instant 2D SVG map fallback.
-  - **Column 3: Discovery Brief & Review (`420px` width):** Detailed candidate dossier showing commercial registration data, professional contact links (e.g., Managing Director, Finance Head), hypothesized need, contact eligibility, and action buttons to qualify or schedule outreach.
-- **Radius and Category Filters:** Quick-toggle chips for travel radius (e.g., `1 km`, `3 km`, `5 km`) and industry segments (e.g., `Retail`, `Manufacturing`, `Healthcare`).
+One desk for every acquisition opportunity. Assigned prospects (bank source records) and businesses found around the chosen area share one list, one map and one detail panel.
+- **Area bar:** the current centre (demo office, device location or a searched place), address search, `Use my location` (opt-in, never sent to the server), `Use demo area`, and a radius select (`500 m`, `1.5 km`, `3 km`, `5 km`, `All my prospects`).
+- **Group chips:** `All`, `Ready to talk` (need checked and contact allowed; hot leads first), `To check` (need, identity, possible customer match or stale source), `New nearby` (not a customer or prospect yet), `In follow-up`, and `Not for now` (restricted, on hold or already a customer; collapsed under `All`). Each chip shows its count. A text search covers name, place, need and contacts.
+- **Three columns:** the grouped list (`300–360px`) with a sort select (`Best first`, `Nearest first`); the Google map (fluid) with one pin colour per group and a legend; the detail panel (`340–400px`): the prospect brief or the place card with its customer-match check. Below 1300px the detail moves under the map; below 768px a `List` / `Map` switch shows one view at a time and choosing a row opens its detail.
+- **Deduplication:** a business already linked to one of your prospects appears once, as the prospect. Adding a new business as a prospect moves it into `To check` and selects it.
+- **Map failure:** a missing key or a map that fails to load shows an inline notice. The list and details keep working.
 
 ### 4. RM Follow-up Management (`/follow-ups`, `/follow-ups/[id]`)
 - **Task List View:** Filterable queue showing open, snoozed, overdue, and completed follow-up items.
