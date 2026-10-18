@@ -401,6 +401,7 @@ export interface RMInsight {
   currency?: string | null;
   values: Record<string, string>;
   rows?: Array<Record<string, string>>;
+  series?: Array<Record<string, string>>;
   source?: RMSource | null;
   method: string;
   kind?: string | null;
@@ -754,6 +755,7 @@ export interface RMTrace {
   context_source_version?: number | null;
   context_source_hash?: string | null;
   prompt_version?: string;
+  thinking_level?: string | null;
   governance?: Record<string, unknown> | null;
 }
 export interface RMTurn {
@@ -773,4 +775,5 @@ export interface RMTurn {
   sharing_status?: string;
   governance?: Record<string, unknown> | null;
   suggestions?: Array<string>;
+  thinking_level?: string | null;
 }

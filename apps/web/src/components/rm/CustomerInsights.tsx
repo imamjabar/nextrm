@@ -1,142 +1,154 @@
 "use client";
-import {useEffect,useRef} from 'react';
-import {ArrowUpRight,Wallet,TrendingUp,CalendarDays,Lightbulb,ChevronDown} from 'lucide-react';
+import {useEffect,useRef,useState} from 'react';
+import type {ReactNode} from 'react';
+import {Activity,ChevronRight,Compass,Lightbulb,PieChart,Scale,Target,TrendingUp,Wallet} from 'lucide-react';
 import {useRM,RequestState} from './shared';
-import {insightValue} from '@/lib/engagement-presentation';
 import {dateLabel} from '@/lib/presentation';
-import type {RMEngagementFeed,RMInsight} from '@/lib/rm.generated';
+import {allocationOf,direction,geometry,goalsOf,indexInsights,marketOf,pacingOf,shown,signed,sparkOf,spendingSlices,stepsOf,usable} from '@/lib/home-model';
+import type {Insights,Panel} from '@/lib/home-model';
+import type {RMEngagementFeed,RMEnrichedNudge} from '@/lib/rm.generated';
+import {Progress,Sparkline,StackBar,TickBars} from './HomeCharts';
+import {PanelView} from './HomePanels';
+
+type Open=(panel:Panel)=>void;
+type TileProps={insights:Insights;open:Open};
+
+const SPARK_WIDTH=104,SPARK_HEIGHT=40;
+const DIRECTION_TONE={up:'good',down:'bad',flat:'neutral'} as const;
+const SPEND_TONE={up:'warn',down:'good',flat:'neutral'} as const;
+
+function Hero({insights}:{insights:Insights}){
+  const cash=insights.cash_flow,safe=insights.safe_to_spend,trend=insights.balance_trend;
+  const pace=pacingOf(cash,safe),spark=sparkOf(trend,SPARK_WIDTH,SPARK_HEIGHT);
+  const balance=shown(cash,'available')||shown(safe,'available');
+  const updated=cash?.source?dateLabel(cash.source.event_at):'';
+  const legend:Array<[string,string,string]>=pace&&pace.untilPayday
+    ?[['Safe to spend until payday',shown(safe,'headroom_until_payday'),'var(--chart-1)'],['Expected spending',shown(safe,'expected_spending_until_payday'),'var(--chart-2)'],['Bills due before payday',pace.commitments>0?shown(safe,'commitments_until_payday'):'','var(--chart-3)']]
+    :[['Free after commitments',shown(cash,'difference'),'var(--chart-1)'],['Commitments in 14 days',shown(cash,'commitments'),'var(--chart-3)']];
+  return <section className="mvp-hero" aria-label="Available balance">
+    <div className="mvp-hero-top">
+      <div>
+        <span className="mvp-eyebrow">Available balance{updated&&updated!=='Not available'?' · as of '+updated:''}</span>
+        <strong className="mvp-hero-amount tabular">{balance||'Not available'}</strong>
+      </div>
+      {spark&&<Sparkline spark={spark} width={SPARK_WIDTH} height={SPARK_HEIGHT} label={`Balance over the last ${spark.days} days. Low ${shown(trend,'balance_30d_min')}, average ${shown(trend,'balance_30d_avg')}, now ${shown(trend,'balance_now')}.`}/>}
+    </div>
+    {pace&&<>
+      {safe?.status==='GAP'&&<p className="mvp-alert" role="alert">Projected shortfall before payday</p>}
+      <StackBar height={8} label="Available funds split by expected use" parts={[{weight:pace.headroom,color:'var(--chart-1)'},{weight:pace.spending,color:'var(--chart-2)'},{weight:pace.commitments,color:'var(--chart-3)'}].filter(part=>part.weight>0)}/>
+      <ul className="mvp-hero-legend">{legend.filter(item=>item[1]).map(([name,value,color])=><li key={name}><b className="tabular"><i style={{background:color}} aria-hidden="true"/>{value}</b><span>{name}</span></li>)}</ul>
+    </>}
+  </section>;
+}
+
+function Tile({panel,icon,title,aside,label,open,children}:{panel:Panel;icon:ReactNode;title:string;aside?:ReactNode;label:string;open:Open;children:ReactNode}){
+  return <button type="button" className="mvp-tile" data-open={panel} aria-label={label} onClick={()=>open(panel)}>
+    <span className="mvp-tile-head"><span>{icon}{title}</span>{aside||<ChevronRight size={14} aria-hidden="true"/>}</span>
+    {children}
+  </button>;
+}
+
+function EmptyTile({icon,title,message}:{icon:ReactNode;title:string;message:string}){
+  return <div className="mvp-tile" data-empty="true"><span className="mvp-tile-head"><span>{icon}{title}</span></span><span className="mvp-tile-note">{message}</span></div>;
+}
+
+function SpendingTile({insights,open}:TileProps){
+  const breakdown=insights.spending_breakdown,change=insights.spending,icon=<PieChart size={14} aria-hidden="true"/>;
+  if(usable(breakdown)){
+    const rise=geometry(breakdown.values.biggest_increase_percent),category=breakdown.values.biggest_increase_category;
+    return <Tile panel="spending" icon={icon} title="Spending" aside={<small>30 days</small>} open={open} label={`Spending: ${shown(breakdown,'total_spend')} in the last 30 days. Open details.`}>
+      <span className="mvp-tile-figure tabular">{shown(breakdown,'total_spend')}</span>
+      <StackBar parts={spendingSlices(breakdown)} label="Spending by category" height={8}/>
+      {rise!==null&&rise>0&&category?<span className="mvp-chip" data-tone="warn">{category} {signed(shown(breakdown,'biggest_increase_percent'))}</span>:<span className="mvp-tile-note">Largest: {breakdown.values.top_category||'not available'}</span>}
+    </Tile>;
+  }
+  if(usable(change)){
+    const risePercent=signed(shown(change,'change_percent'));
+    return <Tile panel="spending" icon={icon} title="Spending" aside={<small>30 days</small>} open={open} label={`${change.title}: ${shown(change,'current_spend')}. Open details.`}>
+      <span className="mvp-tile-figure tabular">{shown(change,'current_spend')}</span>
+      {risePercent&&<span className="mvp-chip" data-tone={SPEND_TONE[direction(change.values.change_percent)]}>{change.title.replace(/ spending$/i,'')} {risePercent}</span>}
+    </Tile>;
+  }
+  return <EmptyTile icon={icon} title="Spending" message="Not available yet."/>;
+}
+
+function GoalsTile({insights,open}:TileProps){
+  const goals=goalsOf(insights.goal_progress),icon=<Target size={14} aria-hidden="true"/>;
+  if(goals.length===0)return <EmptyTile icon={icon} title="Goals" message="No goal recorded."/>;
+  return <Tile panel="goals" icon={icon} title="Goals" aside={<small>{goals.length} {goals.length===1?'goal':'goals'}</small>} open={open} label={'Goals: '+goals.map(goal=>`${goal.label}, ${goal.pctText}, ${goal.toneText}`).join('; ')+'. Open details.'}>
+    {goals.slice(0,2).map(goal=><span className="mvp-mini-goal" key={goal.label}>
+      <span><b>{goal.label}</b><i className="tabular">{goal.pctText}</i></span>
+      <Progress decorative pct={goal.pct} tone={goal.tone} label={goal.label+' progress'}/>
+    </span>)}
+    {goals.length>2&&<span className="mvp-tile-note">+{goals.length-2} more</span>}
+  </Tile>;
+}
+
+function InvestTile({insights,open}:TileProps){
+  const card=insights.portfolio,icon=<TrendingUp size={14} aria-hidden="true"/>;
+  if(!usable(card))return <EmptyTile icon={icon} title="Investments" message="No holdings linked."/>;
+  const shares=allocationOf(card);
+  return <Tile panel="invest" icon={icon} title="Investments" open={open} label={`Investments: portfolio value ${shown(card,'total_value')}. Open details.`}>
+    <span className="mvp-tile-figure tabular">{shown(card,'total_value')}</span>
+    <span className="mvp-tile-chips">
+      {card.values.gain_loss_percent!==undefined&&<span className="mvp-chip" data-tone={DIRECTION_TONE[direction(card.values.gain_loss_percent)]}>{signed(shown(card,'gain_loss_percent'))}</span>}
+      {card.values.change_30d_percent!==undefined&&<span className="mvp-chip" data-tone={DIRECTION_TONE[direction(card.values.change_30d_percent)]}>{signed(shown(card,'change_30d_percent'))} 30d</span>}
+    </span>
+    {shares.length>0&&<StackBar parts={shares} height={6} label={'Allocation: '+shares.map(share=>share.label+' '+share.text).join(', ')}/>}
+  </Tile>;
+}
+
+function MarketTile({insights,open}:TileProps){
+  const market=marketOf(insights.market_insights),icon=<Activity size={14} aria-hidden="true"/>;
+  if(!market)return <EmptyTile icon={icon} title="Market" message="Not available yet."/>;
+  const head=market.headline,movers=market.ticks.filter(tick=>tick.kind!=='INDEX').slice(0,5);
+  return <Tile panel="market" icon={icon} title="Market" aside={<small>{market.open?'Open':'Close'}</small>} open={open} label={`Market: ${head?head.symbol+' '+head.changeText:'update'}. Open details.`}>
+    {head&&<span className="mvp-tile-figure">{head.symbol} <span className="mvp-delta" data-direction={head.direction}>{head.changeText}</span></span>}
+    {movers.length>0&&<TickBars ticks={movers}/>}
+  </Tile>;
+}
+
+function Lead({insights,nudges,open}:TileProps&{nudges:RMEnrichedNudge[]}){
+  const step=stepsOf(insights.next_actions)[0];
+  const lead=step?{caption:'Next step',text:step.action,panel:'steps' as Panel}:nudges[0]?{caption:'For you',text:nudges[0].title,panel:'explore' as Panel}:null;
+  if(!lead)return null;
+  return <button type="button" className="mvp-lead" data-open={lead.panel} onClick={()=>open(lead.panel)}>
+    <Lightbulb size={16} aria-hidden="true"/>
+    <span><small>{lead.caption}</small><strong>{lead.text}</strong></span>
+    <ChevronRight size={16} aria-hidden="true"/>
+  </button>;
+}
+
 export function CustomerInsights({personId,active,compose,viewProduct}:{personId:string;active:boolean;compose:(text:string)=>void;viewProduct:(product:'DEPOSIT'|'SAVINGS')=>void}){
-  const q=useRM<RMEngagementFeed>(`/v1/rm/chat/${personId}/engagement`);const prior=useRef(active);
+  const q=useRM<RMEngagementFeed>(`/v1/rm/chat/${personId}/engagement`),prior=useRef(active);
+  const [panel,setPanel]=useState<Panel|null>(null);
+  const root=useRef<HTMLElement>(null),title=useRef<HTMLHeadingElement>(null),origin=useRef<Panel|null>(null);
   useEffect(()=>{if(active&&!prior.current)q.refresh();prior.current=active;},[active,q.refresh]);
-  const cash=q.data?.insights.find(i=>i.key==='cash_flow'),spend=q.data?.insights.find(i=>i.key==='spending'),recurring=q.data?.insights.find(i=>i.key==='recurring');
-  const salary=q.data?.insights.find(i=>i.key==='salary'),idleCash=q.data?.insights.find(i=>i.key==='idle_cash'),termDeposit=q.data?.insights.find(i=>i.key==='term_deposit');
-  const safeToSpend=q.data?.insights.find(i=>i.key==='safe_to_spend');
-  const goalProgress=q.data?.insights.find(i=>i.key==='goal_progress');
-  const debt=q.data?.insights.find(i=>i.key==='debt');
-  const portfolio=q.data?.insights.find(i=>i.key==='portfolio');
-  const netWorth=q.data?.insights.find(i=>i.key==='net_worth');
-  const spendingBreakdown=q.data?.insights.find(i=>i.key==='spending_breakdown');
-  const nextActions=q.data?.insights.find(i=>i.key==='next_actions');
-  const marketInsights=q.data?.insights.find(i=>i.key==='market_insights');
-  const money=(i:RMInsight|undefined,key:string)=>i&&i.values[key]!==undefined?insightValue(key,i.values[key],i.currency):'Not available';
-  const evidenceMethod=(ev:unknown)=>ev&&typeof ev==='object'&&'method' in ev&&typeof (ev as Record<string,unknown>).method==='string'?(ev as Record<string,unknown>).method as string:'FIN-PIPE-1';
-  const suggestions=q.data?.nudges.slice(0,3)||[];
-  return <section className="mvp-insights"><div className="mvp-view-heading"><span>Personal Banking Overview</span><h1>Hello, Dina</h1><p>Here is your real-time financial picture and daily market context.</p></div><RequestState data={q.data} error={q.error} retry={q.refresh}/>{q.data&&<>
-    <section className="mvp-pfm-hero" aria-label="Available funds and cash flow">
-      <div className="mvp-pfm-hero-top">
-        <span className="mvp-account-tag"><Wallet size={13}/> Primary Account · Verified</span>
-        <small style={{fontSize:'11.5px',color:'var(--muted)'}}>{cash?.source?'Snapshot · '+dateLabel(cash.source.event_at):''}</small>
-      </div>
-      <strong className="mvp-pfm-balance">{money(cash,'available')}</strong>
-      <p className="mvp-pfm-subbalance">Available liquid funds across your linked accounts</p>
-      <div className="mvp-pacing-wrap">
-        <div className="mvp-pacing-bar">
-          <div className="mvp-pacing-seg" style={{width:'85%',background:'var(--primary)'}} title="Safe Headroom (85%)"/>
-          <div className="mvp-pacing-seg" style={{width:'15%',background:'#d97706'}} title="14d Upcoming Commitments (15%)"/>
+  useEffect(()=>{
+    if(panel)title.current?.focus();
+    else if(origin.current)root.current?.querySelector<HTMLElement>(`[data-open="${origin.current}"]`)?.focus();
+  },[panel]);
+  const open:Open=next=>{origin.current=next;setPanel(next);};
+  const insights=indexInsights(q.data?q.data.insights:[]),nudges=q.data?q.data.nudges:[];
+  return <section className="mvp-insights" ref={root}>
+    <RequestState data={q.data} error={q.error} retry={q.refresh}/>
+    {q.data&&(panel
+      ?<PanelView panel={panel} insights={insights} nudges={nudges} comparisons={q.data.comparisons} compose={compose} open={open} close={()=>setPanel(null)} viewProduct={viewProduct} titleRef={title}/>
+      :<div className="mvp-home">
+        <h1 className="sr-only">Your money overview</h1>
+        <Hero insights={insights}/>
+        <div className="mvp-tiles">
+          <SpendingTile insights={insights} open={open}/>
+          <GoalsTile insights={insights} open={open}/>
+          <InvestTile insights={insights} open={open}/>
+          <MarketTile insights={insights} open={open}/>
         </div>
-        <div className="mvp-pacing-labels">
-          <span>Safe headroom: <strong>{money(cash,'difference')}</strong></span>
-          <span>14d bills: <strong>{money(cash,'commitments')}</strong></span>
+        <Lead insights={insights} nudges={nudges} open={open}/>
+        <div className="mvp-links">
+          <button type="button" data-open="cash" onClick={()=>open('cash')}><Wallet size={16} aria-hidden="true"/><span>Bills and cash</span></button>
+          <button type="button" data-open="worth" onClick={()=>open('worth')}><Scale size={16} aria-hidden="true"/><span>Net worth</span></button>
+          <button type="button" data-open="explore" onClick={()=>open('explore')}><Compass size={16} aria-hidden="true"/><span>Explore</span></button>
         </div>
-      </div>
-      <div className="mvp-pfm-actions">
-        <button className="mvp-pfm-btn primary" onClick={()=>compose('Help me plan my cash flow and keep money accessible for upcoming commitments.')} disabled={!cash||cash.status==='UNAVAILABLE'}>
-          <span>Plan cash flow</span><ArrowUpRight size={14}/>
-        </button>
-        <button className="mvp-pfm-btn" onClick={()=>compose('How much can I safely spend or save this month without running short?')}>
-          <span>Safe to spend</span><ArrowUpRight size={14}/>
-        </button>
-      </div>
-    </section>
-    <div className="mvp-section-heading"><h2>Worth a closer look</h2><span>Personal insights</span></div>
-    <article className="mvp-insight-row"><span className="mvp-insight-icon"><TrendingUp size={19}/></span><div><h3>{spend?.title||'Spending insights'}</h3><p>{spend?.status==='AVAILABLE'?`${money(spend,'current_spend')} in the current period${spend.values.change_percent!==undefined?`, ${insightValue('change_percent',spend.values.change_percent,null)} change`:'; percentage change is unavailable'}.`:'Comparable spending information is not available yet.'}</p><details><summary>See the comparison</summary><dl><div><dt>Previous period</dt><dd>{money(spend,'previous_spend')}</dd></div><div><dt>Current period</dt><dd>{money(spend,'current_spend')}</dd></div></dl><p>{spend?.explanation}</p>{spend?.source&&<small>{spend.source.title} · {dateLabel(spend.source.event_at)}</small>}</details>{spend?.status==='AVAILABLE'&&<button onClick={()=>compose('Help me understand the change in my spending and plan my budget.')}>Talk it through <ArrowUpRight size={13}/></button>}</div></article>
-    <article className="mvp-insight-row"><span className="mvp-insight-icon"><CalendarDays size={19}/></span><div><h3>Recurring payments</h3><p>{recurring?.status==='AVAILABLE'?money(recurring,'amount')+' recorded in a verified recurring-charge pattern.':'Verified recurring-payment information is unavailable.'}</p><small>No payment or cancellation is made here.</small></div></article>
-    {salary?.status==='AVAILABLE'&&<article className="mvp-insight-row"><span className="mvp-insight-icon"><TrendingUp size={19}/></span><div><h3>{salary.title}</h3><p>{salary.explanation}</p>{salary.evidence&&<small>Evidence: {evidenceMethod(salary.evidence)}</small>}</div></article>}
-    {idleCash?.status==='AVAILABLE'&&<article className="mvp-insight-row"><span className="mvp-insight-icon"><Wallet size={19}/></span><div><h3>{idleCash.title}</h3><p>{money(idleCash,'idle_cash')} surplus above 3x monthly outflow.</p><p>{idleCash.explanation}</p>{idleCash.evidence&&<small>Evidence: {evidenceMethod(idleCash.evidence)}</small>}<button onClick={()=>compose('How should I think about liquidity before discussing a deposit?')}>Explore liquidity options <ArrowUpRight size={13}/></button></div></article>}
-    {termDeposit?.status==='AVAILABLE'&&<article className="mvp-insight-row"><span className="mvp-insight-icon"><CalendarDays size={19}/></span><div><h3>{termDeposit.title}</h3><p>{money(termDeposit,'balance')} maturing on {termDeposit.values.maturity_date||'upcoming'}.</p><p>{termDeposit.explanation}</p>{termDeposit.evidence&&<small>Evidence: {evidenceMethod(termDeposit.evidence)}</small>}<button onClick={()=>compose('What should I discuss with my RM before my deposit matures?')}>Prepare deposit discussion <ArrowUpRight size={13}/></button></div></article>}
-    {safeToSpend&&safeToSpend.status!=='UNAVAILABLE'&&<SafeToSpendSection insight={safeToSpend} compose={compose}/>}
-    {goalProgress&&goalProgress.status!=='UNAVAILABLE'&&<GoalProgressSection insight={goalProgress} compose={compose}/>}
-    {debt&&debt.status!=='UNAVAILABLE'&&<DebtSection insight={debt} compose={compose}/>}
-    {portfolio&&portfolio.status!=='UNAVAILABLE'&&<PortfolioSection insight={portfolio} compose={compose}/>}
-    {marketInsights&&marketInsights.status!=='UNAVAILABLE'&&<MarketInsightsSection insight={marketInsights} compose={compose}/>}
-    {netWorth&&netWorth.status!=='UNAVAILABLE'&&<NetWorthSection insight={netWorth} compose={compose}/>}
-    {spendingBreakdown&&spendingBreakdown.status!=='UNAVAILABLE'&&<SpendingBreakdownSection insight={spendingBreakdown} compose={compose}/>}
-    {recurring&&recurring.status!=='UNAVAILABLE'&&<RecurringPlanningSection insight={recurring} compose={compose}/>}
-    {nextActions&&nextActions.status!=='UNAVAILABLE'&&<NextActionsSection insight={nextActions} compose={compose}/>}
-    {suggestions.length>0&&<><div className="mvp-section-heading"><h2>For you</h2></div>{suggestions.map(n=><article className="mvp-plan-row" key={n.id}><Lightbulb size={18}/><div><h3>{n.title}</h3><p>{n.body}</p><button onClick={()=>compose(n.prompt)}>Ask the assistant <ArrowUpRight size={13}/></button></div></article>)}</>}
-    <div className="mvp-section-heading"><h2>Explore with confidence</h2><span>Approved education</span></div><div className="mvp-product-list">{q.data.comparisons.map(c=><details className="mvp-product-detail" key={c.title} onToggle={e=>{if(e.currentTarget.open)viewProduct(c.title.toLowerCase().includes('deposit')?'DEPOSIT':'SAVINGS');}}><summary><div><strong>{c.title}</strong><span>{c.ownership==='Already held'?'Get help with your existing product':'Understand the features and tradeoffs'}</span></div><ChevronDown size={17}/></summary><p>{c.education}</p><small>{c.eligibility} · {c.terms_status}</small><button onClick={()=>compose('Explain '+c.title+' and the access, term and fee information I should check.')}>Ask the assistant about this <ArrowUpRight size={14}/></button></details>)}</div><p className="mvp-data-caption">Personal insights use permitted bank information. Product eligibility, fees and current terms require the bank’s own checks.</p>
-  </>}</section>;
-}
-
-function SafeToSpendSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const isGap=insight.status==='GAP';
-  const currency=insight.currency;
-  const headroom=insight.values.headroom_until_payday?insightValue('headroom_until_payday',insight.values.headroom_until_payday,currency):null;
-  const paydayFormatted=insight.values.payday?(dateLabel(insight.values.payday)!=='Not available'?dateLabel(insight.values.payday):insight.values.payday):null;
-  const days=insight.values.days_to_payday;
-  return <section className="mvp-planning-card" aria-label="Safe to spend"><div className="mvp-section-heading"><h2>Safe to spend</h2><span>Cash planning</span></div>{isGap&&<div className="mvp-alert-gap" role="alert">Projected shortfall before payday</div>}{headroom&&<div><span className="mvp-metric-label">Safe to spend until payday</span><strong className="mvp-balance-metric">{headroom}</strong></div>}{(days||paydayFormatted)&&<p className="mvp-planning-subtitle">{days?`${days} days until payday`:''}{days&&paydayFormatted?' · ':''}{paydayFormatted?`Payday: ${paydayFormatted}`:''}</p>}<dl className="mvp-planning-grid">{insight.values.available&&<div><dt>Available funds</dt><dd className="tabular">{insightValue('available',insight.values.available,currency)}</dd></div>}{insight.values.expected_spending_until_payday&&<div><dt>Expected spending</dt><dd className="tabular">{insightValue('expected_spending_until_payday',insight.values.expected_spending_until_payday,currency)}</dd></div>}{insight.values.projected_30d_balance&&<div><dt>Projected 30d balance</dt><dd className="tabular">{insightValue('projected_30d_balance',insight.values.projected_30d_balance,currency)}</dd></div>}{insight.values.monthly_surplus_estimate&&<div><dt>Monthly surplus</dt><dd className="tabular">{insightValue('monthly_surplus_estimate',insight.values.monthly_surplus_estimate,currency)}</dd></div>}{insight.values.buffer_months&&<div><dt>Emergency buffer</dt><dd className="tabular">{insight.values.buffer_months} months</dd></div>}</dl>{insight.explanation&&<p className="mvp-planning-explanation">{insight.explanation}</p>}<div className="mvp-actions-row"><button onClick={()=>compose('How much can I safely spend this month?')}><span>How much can I safely spend this month?</span><ArrowUpRight size={14}/></button></div></section>;
-}
-
-function GoalProgressSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const currency=insight.currency;
-  const goals=insight.rows&&insight.rows.length>0?insight.rows:(insight.values.goal_name?[{label:insight.values.goal_name,target:insight.values.target_amount?insightValue('target_amount',insight.values.target_amount,currency):'',saved:insight.values.saved_amount?insightValue('saved_amount',insight.values.saved_amount,currency):'',progress_percent:insight.values.progress_percent?insight.values.progress_percent+'%':'0%',target_date:insight.values.target_date?(dateLabel(insight.values.target_date)!=='Not available'?dateLabel(insight.values.target_date):insight.values.target_date):'',required_monthly:insight.values.required_monthly?insightValue('required_monthly',insight.values.required_monthly,currency):'',planned_monthly:insight.values.planned_monthly?insightValue('planned_monthly',insight.values.planned_monthly,currency):'',shortfall:insight.values.shortfall_amount?insightValue('shortfall_amount',insight.values.shortfall_amount,currency):'',status:insight.values.goal_status||'ON_TRACK'}]:[]);
-  return <section className="mvp-planning-card" aria-label="Your goals"><div className="mvp-section-heading"><h2>Your goals</h2><span>Progress tracking</span></div>{goals.map((g,idx)=>{const s=(g.status||'').toUpperCase().replace(/[\s-]/g,'_');const chip=s.includes('COMPLETE')?{text:'Complete',mode:'complete' as const}:s.includes('BEHIND')?{text:'Behind',mode:'behind' as const}:{text:'On track',mode:'on_track' as const};const rawPct=parseFloat(String(g.progress_percent||'0').replace('%',''));const pct=Math.min(100,Math.max(0,Number.isFinite(rawPct)?rawPct:0));const goalTitle=g.label||'Financial Goal';const formattedTargetDate=g.target_date?(dateLabel(g.target_date)!=='Not available'?dateLabel(g.target_date):g.target_date):'';return <div key={idx} className="mvp-goal-block"><div className="mvp-goal-header"><span className={`mvp-status-chip mvp-status-${chip.mode}`}>{chip.text}</span><h3 className="mvp-goal-name">{goalTitle}</h3></div><div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${goalTitle} progress`} className="mvp-progress-track"><div className={`mvp-progress-fill mvp-progress-${chip.mode}`} style={{width:`${pct}%`}}/></div><div className="mvp-goal-metrics"><span><strong className="tabular">{g.saved||'0'}</strong> of <span className="tabular">{g.target||'0'}</span></span><span className="tabular">{g.progress_percent||`${pct}%`}</span></div><dl className="mvp-goal-meta">{formattedTargetDate&&<div><dt>Target date</dt><dd>{formattedTargetDate}</dd></div>}{g.required_monthly&&<div><dt>Required</dt><dd className="tabular">{g.required_monthly}/mo</dd></div>}{g.planned_monthly&&<div><dt>Planned</dt><dd className="tabular">{g.planned_monthly}/mo</dd></div>}{g.shortfall&&<div><dt>Shortfall</dt><dd className="tabular">{g.shortfall}</dd></div>}</dl></div>;})}{insight.explanation&&<p className="mvp-planning-explanation">{insight.explanation}</p>}<div className="mvp-actions-row"><button onClick={()=>compose('Am I on track for my goals?')}><span>Am I on track for my goals?</span><ArrowUpRight size={14}/></button></div></section>;
-}
-
-function DebtSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const currency=insight.currency;
-  const outstanding=insight.values.outstanding_total?insightValue('outstanding_total',insight.values.outstanding_total,currency):null;
-  const interestCost=insight.values.monthly_interest_cost?insightValue('monthly_interest_cost',insight.values.monthly_interest_cost,currency):null;
-  const cardRate=insight.values.card_rate_percent?insightValue('card_rate_percent',insight.values.card_rate_percent,null):null;
-  const savingsRate=insight.values.savings_interest_percent?insightValue('savings_interest_percent',insight.values.savings_interest_percent,null):null;
-  const savingsInterestEarned=insight.values.monthly_interest_earned_on_same_amount?insightValue('monthly_interest_earned_on_same_amount',insight.values.monthly_interest_earned_on_same_amount,currency):null;
-  return <section className="mvp-planning-card" aria-label="Credit card cost"><div className="mvp-section-heading"><h2>Credit card cost</h2><span>Debt overview</span></div>{outstanding&&<div><span className="mvp-metric-label">Total outstanding balance</span><strong className="mvp-balance-metric">{outstanding}</strong></div>}<dl className="mvp-planning-grid">{interestCost&&<div><dt>Monthly interest</dt><dd className="tabular">{interestCost}</dd></div>}{cardRate&&<div><dt>Card rate</dt><dd className="tabular">{cardRate}</dd></div>}{insight.values.minimum_payment_total&&<div><dt>Minimum payment</dt><dd className="tabular">{insightValue('minimum_payment_total',insight.values.minimum_payment_total,currency)}</dd></div>}{insight.values.months_to_clear_at_minimum&&<div><dt>Months to clear (min)</dt><dd className="tabular">{insight.values.months_to_clear_at_minimum} months</dd></div>}{insight.values.interest_paid_at_minimum&&<div><dt>Total interest at min</dt><dd className="tabular">{insightValue('interest_paid_at_minimum',insight.values.interest_paid_at_minimum,currency)}</dd></div>}{insight.values.buffer_months_after_repayment&&<div><dt>Buffer after repayment</dt><dd className="tabular">{insight.values.buffer_months_after_repayment} months</dd></div>}</dl>{(savingsRate||savingsInterestEarned)&&<div className="mvp-comparison-callout"><p>{savingsRate?`Savings rate: ${savingsRate} vs card rate: ${cardRate||'card rate'}. `:''}{savingsInterestEarned?`Interest earned on same amount in savings: ${savingsInterestEarned}/mo.`:''}</p></div>}{insight.rows&&insight.rows.length>0&&<div className="mvp-compact-list" aria-label="Card details">{insight.rows.map((r,idx)=><div key={idx} className="mvp-compact-item"><div className="mvp-compact-item-main"><strong>{r.label}</strong><small>{r.rate_percent?`Rate: ${r.rate_percent}`:''}{r.due_day?` · Due day: ${r.due_day}`:''}</small></div><div className="mvp-compact-item-meta"><span className="tabular">{r.outstanding}</span>{r.minimum_payment&&<small className="tabular">Min: {r.minimum_payment}</small>}</div></div>)}</div>}{insight.explanation&&<p className="mvp-planning-explanation">{insight.explanation}</p>}<div className="mvp-actions-row"><button onClick={()=>compose('Should I pay down my credit card or save more?')}><span>Should I pay down my credit card or save more?</span><ArrowUpRight size={14}/></button></div></section>;
-}
-
-function PortfolioSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const currency=insight.currency;
-  const totalValue=insight.values.total_value?insightValue('total_value',insight.values.total_value,currency):null;
-  const gainLossPercent=insight.values.gain_loss_percent?insightValue('gain_loss_percent',insight.values.gain_loss_percent,null):null;
-  const change30dPercent=insight.values.change_30d_percent?insightValue('change_30d_percent',insight.values.change_30d_percent,null):null;
-  const rawDate=insight.values.as_of||(insight.source?insight.source.event_at:null);
-  const asOfDate=rawDate?(dateLabel(rawDate)!=='Not available'?dateLabel(rawDate):rawDate):'today';
-  const holdings=(insight.rows||[]).slice(0,4);
-  const isDrop=Boolean(insight.values.change_30d_percent&&(insight.values.change_30d_percent.startsWith('-')||parseFloat(insight.values.change_30d_percent)<0));
-  return <section className="mvp-planning-card" aria-label="Investments"><div className="mvp-section-heading"><h2>Investments</h2><span>Portfolio & Holdings</span></div>{totalValue&&<div><span className="mvp-metric-label">Total portfolio value</span><strong className="mvp-balance-metric">{totalValue}</strong></div>}<div style={{margin:'10px 0 12px'}}><div style={{display:'flex',height:'9px',borderRadius:'9999px',overflow:'hidden',background:'var(--surface-subtle)'}}><div style={{width:'54.43%',background:'var(--primary)'}} title="Equities (54.4%)"/><div style={{width:'26.13%',background:'#2563eb'}} title="Money Market (26.1%)"/><div style={{width:'19.44%',background:'#7c3aed'}} title="Bonds (19.4%)"/></div><div style={{display:'flex',justifyContent:'space-between',fontSize:'11px',color:'var(--secondary)',marginTop:'5px',fontVariantNumeric:'tabular-nums'}}><span>Equities 54.4%</span><span>Money Market 26.1%</span><span>Bonds 19.4%</span></div></div><dl className="mvp-planning-grid">{gainLossPercent&&<div><dt>Total return</dt><dd className="tabular">{gainLossPercent}{insight.values.gain_loss?` (${insightValue('gain_loss',insight.values.gain_loss,currency)})`:''}</dd></div>}{change30dPercent&&<div><dt>30-day change</dt><dd className="tabular">{change30dPercent}{insight.values.change_30d?` (${insightValue('change_30d',insight.values.change_30d,currency)})`:''}</dd></div>}{insight.values.total_cost&&<div><dt>Cost basis</dt><dd className="tabular">{insightValue('total_cost',insight.values.total_cost,currency)}</dd></div>}{insight.values.holdings_count&&<div><dt>Holdings</dt><dd className="tabular">{insight.values.holdings_count} assets</dd></div>}</dl>{holdings.length>0&&<div className="mvp-compact-list" aria-label="Key holdings">{holdings.map((h,idx)=><div key={idx} className="mvp-compact-item"><div className="mvp-compact-item-main"><strong>{h.label}</strong><small>{h.asset_class}{h.share_percent?` · ${h.share_percent}`:''}{h.holding_since?` · Since ${h.holding_since}`:''}</small></div><div className="mvp-compact-item-meta"><span className="tabular">{h.value}</span><small className="tabular">{h.gain_loss_percent?`Total: ${h.gain_loss_percent}`:''}{h.change_30d_percent?` · 30d: ${h.change_30d_percent}`:''}</small></div></div>)}</div>}<p className="mvp-data-caption">Snapshot as of {asOfDate}. Information, not advice.</p><div className="mvp-actions-row"><button onClick={()=>compose('How are my investments doing?')}><span>How are my investments doing?</span><ArrowUpRight size={14}/></button>{isDrop&&<button onClick={()=>compose('Why did my fund drop?')}><span>Why did my fund drop?</span><ArrowUpRight size={14}/></button>}</div></section>;
-}
-
-function MarketInsightsSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const session=insight.values.session==='OPEN'?'Market Open (09:00 WIB)':'Market Close (16:00 WIB)';
-  const asOf=insight.values.as_of||'18 Oct 2026';
-  const ihsgChange=insight.values.ihsg_change||'-1.45%';
-  const isDown=ihsgChange.startsWith('-');
-  const ticks=(insight.rows||[]).slice(0,5);
-  return <article className="mvp-market-card" aria-label="Market insights"><div className="mvp-market-header"><span className="mvp-live-pulse"><span className="mvp-pulse-dot" aria-hidden="true"/> Live Market Pulse</span><span style={{fontSize:'11px',fontWeight:600,color:'var(--muted)'}}>{session}</span></div><div className="mvp-market-index"><span className="mvp-index-val">IHSG 7,645.20</span><span className="mvp-index-change" style={{color:isDown?'#dc2626':'#16a34a'}}>{ihsgChange}</span><span style={{fontSize:'12px',color:'var(--muted)',marginLeft:'auto'}}>IDX30 -1.82%</span></div><p style={{fontSize:'12.5px',color:'var(--secondary)',lineHeight:1.55,margin:'6px 0 10px'}}>{insight.values.sentiment||'Foreign capital outflows following MSCI index rebalancing sentiment and global risk aversion.'}</p>{ticks.length>0&&<div className="mvp-ticks-scroll" aria-label="Stock ticks">{ticks.map((t,idx)=>{const down=String(t.change_percent||'').startsWith('-');return <div key={idx} className="mvp-tick-chip"><span className="mvp-tick-sym">{t.symbol}</span><span className="mvp-tick-price">{t.price?`IDR ${t.price}`:''}</span><span className="mvp-tick-chg" style={{color:down?'#dc2626':'#16a34a'}}>{t.change_percent}</span></div>;})}</div>}<div style={{marginTop:'10px',display:'flex',justifyContent:'space-between',alignItems:'center'}}><small style={{fontSize:'11px',color:'var(--muted)'}}>Updated {asOf}</small><button className="text-link" style={{fontSize:'12.5px',display:'inline-flex',alignItems:'center',gap:'4px'}} onClick={()=>compose('Why did Indonesian equities and my portfolio drop today?')}>Ask AI about market <ArrowUpRight size={13}/></button></div></article>;
-}
-
-function NetWorthSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const currency=insight.currency;
-  const netWorth=insight.values.net_worth?insightValue('net_worth',insight.values.net_worth,currency):null;
-  const assets=insight.values.assets_total?insightValue('assets_total',insight.values.assets_total,currency):null;
-  const liabilities=insight.values.liabilities_total?insightValue('liabilities_total',insight.values.liabilities_total,currency):null;
-  return <section className="mvp-planning-card" aria-label="Net worth and financial health"><div className="mvp-section-heading"><h2>Net worth and financial health</h2><span>Overview</span></div>{netWorth&&<div><span className="mvp-metric-label">Net worth</span><strong className="mvp-balance-metric">{netWorth}</strong></div>}<dl className="mvp-planning-grid">{assets&&<div><dt>Total assets</dt><dd className="tabular">{assets}</dd></div>}{liabilities&&<div><dt>Total liabilities</dt><dd className="tabular">{liabilities}</dd></div>}{insight.values.assets_change_30d_percent&&<div><dt>30d asset change</dt><dd className="tabular">{insightValue('assets_change_30d_percent',insight.values.assets_change_30d_percent,null)}</dd></div>}{insight.values.buffer_months&&<div><dt>Liquid buffer</dt><dd className="tabular">{insight.values.buffer_months} months</dd></div>}</dl>{insight.explanation&&<p className="mvp-planning-explanation">{insight.explanation}</p>}<div className="mvp-actions-row"><button onClick={()=>compose('How is my overall financial health and net worth trending?')}><span>Review financial health trend</span><ArrowUpRight size={14}/></button></div></section>;
-}
-
-function SpendingBreakdownSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const currency=insight.currency;
-  const totalSpend=insight.values.total_spend?insightValue('total_spend',insight.values.total_spend,currency):null;
-  const categories=[{name:'Groceries',pct:27.8,color:'#285c3c',val:'IDR 1,675,000'},{name:'Dining',pct:21.4,color:'#d97706',val:'IDR 1,290,000'},{name:'Transport',pct:18.5,color:'#2563eb',val:'IDR 1,118,000'},{name:'Utilities',pct:14.2,color:'#0d9488',val:'IDR 857,000'},{name:'Other',pct:18.1,color:'#6b7280',val:'IDR 1,095,000'}];
-  return <section className="mvp-planning-card" aria-label="Where your money went"><div className="mvp-section-heading"><h2>Where your money went</h2><span>30-day analytics</span></div>{totalSpend&&<div><span className="mvp-metric-label">Total spending</span><strong className="mvp-balance-metric">{totalSpend}</strong></div>}<div className="mvp-category-bar">{categories.map((c,i)=><div key={i} className="mvp-cat-seg" style={{width:`${c.pct}%`,background:c.color}} title={`${c.name} (${c.pct}%)`}/>)}</div><div className="mvp-cat-legend">{categories.map((c,i)=><div key={i} className="mvp-cat-item"><span className="mvp-cat-dot" style={{background:c.color}}/><span className="mvp-cat-name">{c.name}</span><span className="mvp-cat-val">{c.pct}%</span></div>)}</div><dl className="mvp-planning-grid">{insight.values.spend_to_income_percent&&<div><dt>Spend-to-income</dt><dd className="tabular">{insightValue('spend_to_income_percent',insight.values.spend_to_income_percent,null)}</dd></div>}{insight.values.savings_rate_percent&&<div><dt>Savings rate</dt><dd className="tabular">{insightValue('savings_rate_percent',insight.values.savings_rate_percent,null)}</dd></div>}</dl><div className="mvp-actions-row"><button onClick={()=>compose('Where is my money going and how can I stop overspending?')}><span>Analyze my spending</span><ArrowUpRight size={14}/></button></div></section>;
-}
-function RecurringPlanningSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const currency=insight.currency;
-  const amount=insight.values.amount?insightValue('amount',insight.values.amount,currency):null;
-  const discretionary=insight.values.discretionary_total?insightValue('discretionary_total',insight.values.discretionary_total,currency):null;
-  const rows=[...(insight.rows||[])].sort((a,b)=>{if(a.type==='Discretionary'&&b.type!=='Discretionary')return -1;if(a.type!=='Discretionary'&&b.type==='Discretionary')return 1;return 0;});
-  return <section className="mvp-planning-card" aria-label="Recurring payments planning"><div className="mvp-section-heading"><h2>Recurring payments</h2><span>Subscriptions & commitments</span></div>{amount&&<div><span className="mvp-metric-label">Total recurring commitments</span><strong className="mvp-balance-metric">{amount}</strong></div>}<dl className="mvp-planning-grid">{discretionary&&<div><dt>Discretionary recurring</dt><dd className="tabular">{discretionary}</dd></div>}{insight.values.merchant_count&&<div><dt>Active subscriptions</dt><dd className="tabular">{insight.values.merchant_count}</dd></div>}</dl>{rows.length>0&&<div className="mvp-compact-list" aria-label="Recurring commitments breakdown">{rows.map((row,idx)=><div key={idx} className="mvp-compact-item"><div className="mvp-compact-item-main"><div className="mvp-item-badge-line"><span className={`mvp-status-chip ${row.type==='Discretionary'?'mvp-status-behind':'mvp-status-neutral'}`}>{row.type||'Recurring'}</span><strong>{row.label}</strong></div><small>{row.category}{row.next_expected?' · Next: '+(dateLabel(row.next_expected)!=='Not available'?dateLabel(row.next_expected):row.next_expected):''}</small></div><div className="mvp-compact-item-meta"><span className="tabular">{row.monthly_estimate||row.typical_amount}</span>{row.times_90d&&<small>{row.times_90d} in 90d</small>}</div></div>)}</div>}{insight.explanation&&<p className="mvp-planning-explanation">{insight.explanation}</p>}<div className="mvp-actions-row"><button onClick={()=>compose('Are there subscriptions or recurring costs I can cut?')}><span>Are there subscriptions or recurring costs I can cut?</span><ArrowUpRight size={14}/></button></div></section>;
-}
-
-function NextActionsSection({insight,compose}:{insight:RMInsight;compose:(text:string)=>void}){
-  const rows=[...(insight.rows||[])].sort((a,b)=>{const ra=parseInt(a.rank||'0',10);const rb=parseInt(b.rank||'0',10);return ra-rb;});
-  return <section className="mvp-planning-card" aria-label="Suggested next steps"><div className="mvp-section-heading"><h2>Suggested next steps</h2><span>Action plan</span></div>{rows.length>0&&<ol className="mvp-actions-list">{rows.map((item,idx)=><li key={idx} className="mvp-action-item"><span className="mvp-action-rank" aria-hidden="true">{item.rank||idx+1}</span><div className="mvp-action-content">{item.topic&&<span className="mvp-action-topic">{item.topic}</span>}<strong className="mvp-action-text">{item.action}</strong>{item.reason&&<p className="mvp-action-reason">{item.reason}</p>}</div></li>)}</ol>}{insight.explanation&&<p className="mvp-planning-explanation">{insight.explanation}</p>}<div className="mvp-actions-row"><button onClick={()=>compose('What should I do next to improve my finances?')}><span>What should I do next to improve my finances?</span><ArrowUpRight size={14}/></button></div></section>;
+      </div>)}
+  </section>;
 }

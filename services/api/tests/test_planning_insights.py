@@ -40,6 +40,20 @@ def test_goal_totals_and_per_goal_extras_are_calculated_for_the_model_to_quote()
     assert display_values(goal)['required_monthly_total'] == 'IDR 2,732,142.86'
 
 
+def test_balance_series_is_the_daily_path_behind_the_balance_card_and_stays_out_of_the_prompt():
+    from decimal import ROUND_HALF_UP
+    from app.services.assistant.engine import readable_insight
+    with SessionLocal() as db:
+        trend = cards(db)['balance_trend']
+    series, v = trend['series'], trend['values']
+    days = [date.fromisoformat(point['date']) for point in series]
+    balances = [Decimal(point['balance']) for point in series]
+    assert len(series) == 30 and all((later - earlier).days == 1 for earlier, later in zip(days, days[1:]))
+    assert balances[-1] == Decimal(v['balance_now']) and min(balances) == Decimal(v['balance_30d_min'])
+    assert (sum(balances) / 30).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) == Decimal(v['balance_30d_avg'])
+    assert 'series' not in readable_insight(trend)
+
+
 def test_goal_headroom_keeps_its_sign_when_the_goals_outgrow_the_surplus():
     with SessionLocal() as db:
         db.query(BankGoal).filter_by(name='Dana Darurat').update({'target_amount': Decimal('60000000.00')})
@@ -88,6 +102,7 @@ def test_portfolio_keeps_the_sign_of_losses_and_allocation_adds_up():
     assert shown['gain_loss_percent'] == '0.15%' and shown['total_value'] == 'IDR 15,524,000' and shown['as_of'] == '17 Oct 2026'
     assert next(r for r in portfolio['rows'] if r['label'] == 'Reksa Dana Indeks IDX30')['gain_loss'] == 'IDR -175,000'
     assert next(r for r in portfolio['rows'] if 'BBCA' in r['label'])['holding_since'] == '15 Jun 2026'
+    assert 'holding_since' not in next(r for r in portfolio['rows'] if r['label'] == 'Reksa Dana Indeks IDX30')
 
 
 def test_net_worth_subtracts_liabilities_and_omits_unknown_history():

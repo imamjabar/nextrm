@@ -295,8 +295,8 @@ def portfolio_card(facts: dict[str, Any], source: dict, cur: str) -> dict[str, A
                'share_percent': percent_text(ratio_percent(h['value'], total)), 'cost': money_text(h['cost'], cur),
                'gain_loss': money_text(h['value'] - h['cost'], cur),
                'gain_loss_percent': percent_text(ratio_percent(h['value'] - h['cost'], h['cost']), signed=True)}
-        if h.get('as_of'):
-            row['holding_since'] = date_text(h['as_of'].date().isoformat()) if hasattr(h['as_of'], 'date') else str(h['as_of'])
+        if h.get('as_of') and h['as_of'].date().isoformat() < as_of:
+            row['holding_since'] = date_text(h['as_of'].date().isoformat())
         if h['value_30d_ago']:
             row['change_30d_percent'] = percent_text(move(h), signed=True)
         rows.append(row)

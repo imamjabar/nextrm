@@ -115,6 +115,7 @@ def features_for(db: Session, customer: BankCustomer, as_of: Optional[Any] = Non
 
     balance_30d_min = min(daily_balances) if daily_balances else balance_now
     balance_30d_avg = (sum(daily_balances) / Decimal(len(daily_balances))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if daily_balances else balance_now
+    balance_series = [(as_of_date - timedelta(days=offset), balance) for offset, balance in enumerate(daily_balances)][::-1]
 
     # 2. Spend by category with prior-period delta and %
     cat_30: dict[str, Decimal] = {}
@@ -309,6 +310,7 @@ def features_for(db: Session, customer: BankCustomer, as_of: Optional[Any] = Non
         'balance_now': balance_now,
         'balance_30d_avg': balance_30d_avg,
         'balance_30d_min': balance_30d_min,
+        'balance_series': balance_series,
         'savings_balance': savings_balance,
         'monthly_outflow': monthly_outflow,
         'total_debit_30': total_debit_30,
@@ -683,6 +685,7 @@ def insight_cards(db: Session, party: Party, as_of: Optional[Any] = None) -> lis
             'balance_30d_avg': format(features['balance_30d_avg'], '.2f'),
             'balance_30d_min': format(features['balance_30d_min'], '.2f'),
         },
+        'series': [{'date': day.isoformat(), 'balance': format(balance, '.2f')} for day, balance in features['balance_series']],
         'explanation': (
             f"Current balance is {money_text(avail, cur)} with 30-day average of "
             f"{money_text(features['balance_30d_avg'], cur)} and minimum of {money_text(features['balance_30d_min'], cur)}."

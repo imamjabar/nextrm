@@ -132,7 +132,7 @@ class RMDecisionItem(BaseModel):
     nudge_id:str;family:str;category:str;result:str;reason:str
     source_versions:list[list[str|int]]=Field(default_factory=list);expires_at:str|None=None
 class RMInsight(BaseModel):
-    key:str;title:str;status:str;explanation:str;currency:str|None=None;values:dict[str,str];rows:list[dict[str,str]]=Field(default_factory=list);source:RMSource|None=None;method:str;kind:str|None=None;evidence:dict[str,Any]|str|None=None
+    key:str;title:str;status:str;explanation:str;currency:str|None=None;values:dict[str,str];rows:list[dict[str,str]]=Field(default_factory=list);series:list[dict[str,str]]=Field(default_factory=list);source:RMSource|None=None;method:str;kind:str|None=None;evidence:dict[str,Any]|str|None=None
 class RMComparison(BaseModel):
     title:str;education:str;ownership:str;eligibility:str;terms_status:str;source:RMSource
 class RMEngagementFeed(BaseModel):

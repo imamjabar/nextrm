@@ -312,7 +312,7 @@ def clean_suggestions(items:list[str])->list[str]:
     return kept[:3]
 
 def readable_insight(row:dict)->dict:
-    return {**{k:v for k,v in row.items() if k not in {'source','values'}},'values':display_values(row)}
+    return {**{k:v for k,v in row.items() if k not in {'source','values','series'}},'values':display_values(row)}
 
 CHAT_SYSTEM=(
     "You are the customer's personal banking assistant inside their bank's app: warm, sharp and genuinely useful, "

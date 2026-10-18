@@ -64,10 +64,10 @@ NextRM organizes views across three distinct physical surfaces: the customer pho
 The customer view is presented inside a responsive mobile frame (`390px` width on desktop monitors; fluid full-width on mobile devices) representing a bank’s mobile application:
 - **Header:** Institution brand mark, active customer profile greeting, and quick access to official bank RM contact information.
 - **Navigation Tabs:**
-  - **Home View:** Displays declared personal financial goals (editable inline), validated financial insights (cash flow differences, spending variances), and care-first suggestions (nudges).
-  - **Chats View:** Persistent conversation area with multi-session support. Features a compact session bar with `+ New Chat` and an expandable History drawer.
-- **Message Area:** Scrollable transcript of messages. Assistant answers clearly display cited source tags (`[Source: Savings Terms]`), expandable certainty notes, and guided next-step chips.
-- **Composer:** Multi-line text input with keyboard submission (`Enter` to send, `Shift+Enter` for line breaks) and active provider status indicators (`LIVE` vs `SIMULATED`).
+  - **Home View:** One screen with no long scroll at phone height. A balance block (available funds, a 30-day balance line, and a bar splitting funds into safe-to-spend, expected spending and bills due before payday) sits above four widgets: spending by category, goals, investments and market. A next-step strip and three links (bills and cash, net worth, explore) complete the screen. Every widget opens an in-place detail panel with a back button; detail panels hold the donut, allocation and goal charts, rows and the compose-a-question buttons. Chart geometry comes only from the backend's decimal strings and the 30-day balance series; unavailable data shows a plain empty tile, never a placeholder chart.
+  - **Chats View:** Persistent conversation area with multi-session support. One slim row carries `New chat`, `History` and the session title; the welcome state is a single heading with four starter chips.
+- **Message Area:** Scrollable transcript. Customer messages are solid bubbles; assistant answers are cards with a mode tag (`Gemini · live` or `Simulated`), cited sources, and guided next-step chips.
+- **Composer:** Pill-shaped input that grows to about five lines (16px text so iOS does not zoom), keyboard submission (`Enter` to send, `Shift+Enter` for line breaks) and a 44px send button.
 - **Mandatory Footer:** Permanently pinned disclaimer at the base of the conversation:
   > *"AI can make mistakes. Always check important info."*
 - **RM Contact Sheet Modal:** Triggered when human assistance is requested. Displays bank-configured official phone numbers, email addresses, and relationship team availability. Contains no unmonitored peer-to-peer chat widget.

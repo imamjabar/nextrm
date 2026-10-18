@@ -61,10 +61,11 @@ await act(async()=>tree.root.findByType('form').props.onSubmit({preventDefault()
 assert.equal('share_with_rm' in calls.at(-1).body,false);
 await click(tree,'Home');assert.equal(tree.root.findByProps({className:'mvp-insights-view'}).props.hidden,false);
 assert.ok(labelText(tree.root).includes('IDR 12,500,000')&&!labelText(tree.root).includes('12,500,000.00'));
-assert.ok(labelText(tree.root).includes('27.78% change'));
+assert.ok(/\+27\.78%/.test(labelText(tree.root)));
 assert.ok(!labelText(tree.root).includes('27.78 IDR'));
 await click(tree,'Chats');await click(tree,'History');assert.ok(labelText(tree.root).includes('A saved chat'));await act(async()=>tree.root.findAllByType('button').find(n=>n.props.className==='mvp-history-row').props.onClick());await click(tree,'Home');
 console.log('PASS focused home/new-chat/history, no sharing/request UI, correct snapshot/percentage units and exact AI caution');
+await click(tree,'Explore');
 const product=tree.root.findAllByType('details').find(n=>n.props.className==='mvp-product-detail');assert.ok(product);
 await act(async()=>product.props.onToggle({currentTarget:{open:true}}));
 await click(tree,'Ask the assistant about this');
@@ -82,13 +83,7 @@ await act(async()=>tree.unmount());console.log('PASS RM contact sheet keeps offi
 const presentation=load('lib/engagement-presentation.ts');
 assert.equal(presentation.insightValue('gain_loss_percent','-0.96','IDR'),'-0.96%');
 assert.equal(presentation.insightValue('current_spend','1150000.00','IDR'),'IDR 1,150,000');
-const customerInsightsSrc=fs.readFileSync(path.resolve(root,'components/rm/CustomerInsights.tsx'),'utf8');
-for(const key of ['safe_to_spend','goal_progress','debt','portfolio','net_worth','next_actions','spending_breakdown']){
-  assert.ok(customerInsightsSrc.includes(key),`Missing key ${key} in CustomerInsights.tsx`);
-}
-assert.ok(customerInsightsSrc.includes('Information, not advice'),'Missing "Information, not advice" line in CustomerInsights.tsx');
 const composed=[];
-const {CustomerInsights}=load('components/rm/CustomerInsights.tsx');
 const planningFeed={
   profile:{version:1,commercial_allowed:true},
   nudges:[],
@@ -109,34 +104,38 @@ cache.delete(path.resolve(root,'components/rm/CustomerInsights.tsx'));
 const {CustomerInsights:PlanningInsights}=load('components/rm/CustomerInsights.tsx');
 let planningTree;
 await act(async()=>{planningTree=Renderer.create(React.createElement(PlanningInsights,{personId:'customer-one',active:true,compose:text=>composed.push(text),viewProduct:()=>{}}));});
-const planningText=labelText(planningTree.root);
-assert.ok(planningText.includes('Safe to spend'));
-assert.ok(planningText.includes('Your goals'));
-assert.ok(planningText.includes('Credit card cost'));
-assert.ok(planningText.includes('Investments'));
-assert.ok(planningText.includes('Net worth and financial health'));
-assert.ok(planningText.includes('Where your money went'));
-assert.ok(planningText.includes('Recurring payments'));
-assert.ok(planningText.includes('Suggested next steps'));
-assert.ok(planningText.includes('Snapshot as of 15 Oct 2026. Information, not advice.'));
-const progressBars=planningTree.root.findAll(n=>n.props.role==='progressbar');
-assert.ok(progressBars.length>=1);
-assert.equal(progressBars[0].props['aria-valuenow'],60);
-for(const question of [
-  'How much can I safely spend this month?',
-  'Am I on track for my goals?',
-  'Should I pay down my credit card or save more?',
-  'How are my investments doing?',
-  'Why did my fund drop?',
-  'How is my overall financial health?',
-  'Where is my money going and how can I spend less?',
-  'Are there subscriptions or recurring costs I can cut?',
-  'What should I do next to improve my finances?'
-]){
-  const btn=planningTree.root.findAllByType('button').find(b=>labelText(b).includes(question));
-  assert.ok(btn,`Button for "${question}" not found`);
-  await act(async()=>btn.props.onClick());
-  assert.equal(composed.at(-1),question);
+const openPanel=async panel=>{await act(async()=>planningTree.root.findAll(n=>n.type==='button'&&n.props['data-open']===panel)[0].props.onClick());};
+const closePanel=async()=>{await act(async()=>planningTree.root.findAll(n=>n.type==='button'&&n.props['aria-label']==='Back to overview')[0].props.onClick());};
+const overview=labelText(planningTree.root);
+for(const expected of ['IDR 6,200,000','IDR 85,000,000','Emergency Fund','60.00%'])assert.ok(overview.includes(expected),`overview is missing "${expected}"`);
+const panels=[
+  ['spending',['Where your money went','IDR 2,400,000'],['Where is my money going and how can I spend less?']],
+  ['goals',['Your goals','IDR 30,000,000'],['Am I on track for my goals?']],
+  ['invest',['Investments','Snapshot as of 15 Oct 2026. Information, not advice.'],['How are my investments doing?','Why did my fund drop?']],
+  ['cash',['Safe to spend','Recurring payments','Gym'],['How much can I safely spend this month?','Are there subscriptions or recurring costs I can cut?']],
+  ['worth',['Net worth and financial health','Credit card cost'],['How is my overall financial health?','Should I pay down my credit card or save more?']],
+  ['steps',['Suggested next steps','Pay high-interest card first'],['What should I do next to improve my finances?']]
+];
+for(const [panel,texts,questions] of panels){
+  await openPanel(panel);
+  const shown=labelText(planningTree.root);
+  for(const expected of texts)assert.ok(shown.includes(expected),`${panel} panel is missing "${expected}"`);
+  assert.ok(!shown.includes('Your money overview'),`${panel} panel replaces the overview in place`);
+  for(const question of questions){
+    const btn=planningTree.root.findAllByType('button').find(b=>labelText(b).includes(question));
+    assert.ok(btn,`Button for "${question}" not found`);
+    await act(async()=>btn.props.onClick());
+    assert.equal(composed.at(-1),question);
+  }
+  if(panel==='goals'){
+    const bars=planningTree.root.findAll(n=>n.props.role==='progressbar');
+    assert.ok(bars.length>=1);
+    assert.equal(bars[0].props['aria-valuenow'],60);
+  }
+  await closePanel();
+  assert.ok(labelText(planningTree.root).includes('IDR 6,200,000'),`closing ${panel} returns to the overview`);
 }
+await openPanel('steps');await click(planningTree,'See the figures');
+assert.ok(labelText(planningTree.root).includes('Credit card cost'));
 await act(async()=>planningTree.unmount());
-console.log('PASS planning insights render, progress bar accessibility, disclosure, and 9 compose question buttons');
+console.log('PASS Home overview and in-place panels: figures, progress bar accessibility, disclosure, panel navigation and compose questions');
