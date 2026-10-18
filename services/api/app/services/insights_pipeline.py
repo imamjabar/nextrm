@@ -247,22 +247,29 @@ def features_for(db: Session, customer: BankCustomer, as_of: Optional[Any] = Non
         if has_multiple or is_known_rec_cat or is_known_rec_merchant:
             amounts = [Decimal(str(t.amount)) for t in m_list]
             avg_bill_amt = (sum(amounts) / Decimal(len(amounts))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            latest_tx_date = _normalize_dt(m_list[-1].posted_at).date()
-            next_date = latest_tx_date + timedelta(days=30)
-            while next_date < as_of_date - timedelta(days=5):
-                next_date += timedelta(days=30)
+            dates = [_normalize_dt(t.posted_at).date() for t in m_list]
+            gaps = sorted((b - a).days for a, b in zip(dates, dates[1:]) if (b - a).days > 0)
+            interval = gaps[len(gaps) // 2] if gaps else 30
+            cadence = 'WEEKLY' if interval <= 10 else 'FORTNIGHTLY' if interval <= 20 else 'MONTHLY'
+            interval = {'WEEKLY': 7, 'FORTNIGHTLY': 14, 'MONTHLY': 30}[cadence]
+            is_bill = is_known_rec_cat or is_known_rec_merchant
+            grace = timedelta(days=5 if is_bill and cadence == 'MONTHLY' else 0)
+            next_date = dates[-1] + timedelta(days=interval)
+            while next_date < as_of_date - grace:
+                next_date += timedelta(days=interval)
             recurring_bills.append({
                 'merchant': merchant,
                 'category': m_list[-1].category or 'Recurring',
+                'kind': 'BILL' if is_bill else 'REGULAR',
                 'amount': avg_bill_amt,
                 'monthly_estimate': (sum(amounts) / Decimal('3.00')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
                 'count_90': len(m_list),
-                'cadence': 'MONTHLY',
-                'last_date': latest_tx_date,
+                'cadence': cadence,
+                'last_date': dates[-1],
                 'next_expected_date': next_date,
             })
 
-    total_recurring_monthly = sum((b['amount'] for b in recurring_bills), Decimal('0.00'))
+    total_recurring_monthly = sum((b['monthly_estimate'] for b in recurring_bills), Decimal('0.00'))
 
     # 5. Idle cash: savings balance above 3x average monthly outflow
     monthly_outflow = (total_debit_90 / Decimal('3.00')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -281,7 +288,7 @@ def features_for(db: Session, customer: BankCustomer, as_of: Optional[Any] = Non
     upcoming_bill_items: list[dict[str, Any]] = []
     fourteen_days_ahead = as_of_date + timedelta(days=14)
     for b in recurring_bills:
-        if as_of_date <= b['next_expected_date'] <= fourteen_days_ahead:
+        if b['kind'] == 'BILL' and as_of_date <= b['next_expected_date'] <= fourteen_days_ahead:
             commitments_14d += b['amount']
             upcoming_bill_items.append(b)
 
@@ -545,26 +552,34 @@ def insight_cards(db: Session, party: Party, as_of: Optional[Any] = None) -> lis
         key = (b['category'] or '').lower()
         category_total[key] = category_total.get(key, Decimal('0.00')) + b['monthly_estimate']
     kind_total = lambda kind: format(sum((b['monthly_estimate'] for b in features['recurring_bills'] if kind_of(b['category']) == kind), Decimal('0.00')), '.2f')
+    bills = [b for b in features['recurring_bills'] if b['kind'] == 'BILL']
+    regular = [b for b in features['recurring_bills'] if b['kind'] == 'REGULAR']
+    bills_total = sum((b['monthly_estimate'] for b in bills), Decimal('0.00'))
+    regular_total = sum((b['monthly_estimate'] for b in regular), Decimal('0.00'))
     recurring_rows = [
-        {'label': b['merchant'], 'category': b['category'], 'type': kind_of(b['category']), 'monthly_estimate': money_text(b['monthly_estimate'], cur),
+        {'label': b['merchant'], 'category': b['category'], 'group': 'Bill or subscription' if b['kind'] == 'BILL' else 'Regular spending',
+         'type': kind_of(b['category']), 'cadence': b['cadence'].capitalize(), 'monthly_estimate': money_text(b['monthly_estimate'], cur),
          'category_monthly_total': money_text(category_total[(b['category'] or '').lower()], cur),
          'typical_amount': money_text(b['amount'], cur), 'times_90d': str(b['count_90']), 'next_expected': date_text(b['next_expected_date'].isoformat())}
-        for b in sorted(features['recurring_bills'], key=lambda b: b['monthly_estimate'], reverse=True)[:12]
+        for b in sorted(features['recurring_bills'], key=lambda b: (b['kind'] != 'BILL', -b['monthly_estimate']))[:12]
     ]
     recurring_values = {
-        'amount': format(recurring_total, '.2f'), 'merchant_count': str(rec_count),
+        'monthly_total': format(recurring_total, '.2f'), 'merchant_count': str(rec_count),
+        'bills_count': str(len(bills)), 'bills_monthly_total': format(bills_total, '.2f'),
+        'regular_count': str(len(regular)), 'regular_monthly_total': format(regular_total, '.2f'),
         'discretionary_total': kind_total('Discretionary'), 'essential_total': kind_total('Essential'), 'variable_total': kind_total('Variable'),
     }
     recurring_card = {
         'key': 'recurring',
         'kind': 'RECURRING_BILLS',
-        'title': 'Recurring charge snapshot',
+        'title': 'Bills and regular spending',
         'currency': cur,
         'status': 'AVAILABLE' if rec_count > 0 else 'UNAVAILABLE',
         'values': recurring_values if rec_count > 0 else {},
         'rows': recurring_rows,
         'explanation': (
-            f"Verified pattern in the supplied snapshot ({rec_count} merchant pattern(s)). No cancellation or payment is made."
+            f"About {money_text(recurring_total, cur)} a month repeats: {len(bills)} bill(s) and subscription(s) of {money_text(bills_total, cur)} "
+            f"and {len(regular)} regular merchant(s) of {money_text(regular_total, cur)}, estimated from 90 days. No cancellation or payment is made."
             if rec_count > 0
             else 'Verified recurring pattern is unavailable.'
         ),

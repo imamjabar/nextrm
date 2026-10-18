@@ -78,6 +78,10 @@ function GoalsPanel({insights,compose}:Props){
   if(goals.length===0)return <Missing>No savings goal is recorded for this profile.</Missing>;
   const totals:Array<[string,string]>=[['Needed each month',shown(card,'required_monthly_total')],['Planned each month',shown(card,'planned_total_monthly')],['Extra needed each month',shown(card,'extra_monthly_needed_total')],['Shortfall at target dates',shown(card,'shortfall_total')]];
   return <>
+    {(card?.values.goal_savings||card?.values.goal_contributions_reserved)&&<Block title="Goal pockets" note="Held apart from your balance">
+      <Stats items={[['Saved in goal pockets',shown(card,'goal_savings')],['Set aside this month',shown(card,'goal_contributions_reserved')]]}/>
+      <p className="mvp-caption">This month's planned contributions are already subtracted from safe to spend on Home.</p>
+    </Block>}
     {goals.map(goal=><section className="mvp-block mvp-goal" key={goal.label} aria-label={goal.label}>
       <header><h3>{goal.label}</h3><Chip tone={TONE_BY_GOAL[goal.tone]}>{goal.toneText}</Chip></header>
       <Progress pct={goal.pct} tone={goal.tone} label={goal.label+' progress'}/>
@@ -142,34 +146,46 @@ function MarketPanel({insights,compose}:Props){
   </>;
 }
 
+function Waterfall({rows}:{rows:Array<[string,string,string]>}){
+  const present=rows.filter(row=>row[2]);
+  if(present.length===0)return null;
+  return <dl className="mvp-waterfall">{present.map(([sign,name,value])=><div key={name} data-sign={sign}><dt><span aria-hidden="true">{sign}</span>{name}</dt><dd className="tabular">{value}</dd></div>)}</dl>;
+}
+
 function CashPanel({insights,compose}:Props){
   const safe=insights.safe_to_spend,salary=insights.salary,recurring=insights.recurring,idle=insights.idle_cash,deposit=insights.term_deposit;
   const bills=billsOf(recurring);
   if(!usable(safe)&&!usable(salary)&&bills.length===0&&!usable(idle)&&!usable(deposit))return <Missing>Cash and bill information is not available yet.</Missing>;
   const days=safe?.values.days_to_payday,payday=shownDate(safe?.values.payday);
-  const visible=bills.slice(0,5),hidden=bills.slice(5);
+  const fixed=bills.filter(bill=>bill.group==='Bill or subscription'),regular=bills.filter(bill=>bill.group!=='Bill or subscription');
   const billRow=(bill:typeof bills[number])=><li key={bill.label+bill.next}>
-    <span><strong>{bill.label}</strong><small>{bill.category}{bill.next?' · next '+bill.next:''}</small></span>
-    <span><b className="tabular">{bill.monthly}</b><small>{bill.discretionary?<Chip tone="warn">{bill.type}</Chip>:bill.type}{bill.times?' · '+bill.times+' in 90d':''}</small></span>
+    <span><strong>{bill.label}</strong><small>{[bill.cadence,bill.category,bill.next?'next '+bill.next:''].filter(Boolean).join(' · ')}</small></span>
+    <span><b className="tabular">{bill.monthly}</b><small>a month · {bill.discretionary?<Chip tone="warn">{bill.type}</Chip>:bill.type}</small></span>
   </li>;
+  const list=(items:typeof bills)=><>
+    {items.length>0&&<ul className="mvp-rows">{items.slice(0,4).map(billRow)}</ul>}
+    {items.length>4&&<details className="mvp-more"><summary>Show {items.length-4} more</summary><ul className="mvp-rows">{items.slice(4).map(billRow)}</ul></details>}
+  </>;
   return <>
-    {usable(safe)&&<Block title="Safe to spend" note="Until payday">
+    {usable(safe)&&<Block title="Safe to spend" note={payday?'Until payday, '+payday:'Next 30 days'}>
       {safe.status==='GAP'&&<p className="mvp-alert" role="alert">Projected shortfall before payday</p>}
-      <strong className="mvp-figure">{shown(safe,'headroom_until_payday')}</strong>
-      {(days||payday)&&<p className="mvp-sentence">{days?days+' days until payday':''}{days&&payday?' · ':''}{payday?'Payday: '+payday:''}</p>}
-      <Stats items={[['Available funds',shown(safe,'available')],['Expected spending',shown(safe,'expected_spending_until_payday')],['Projected 30-day balance',shown(safe,'projected_30d_balance')],['Monthly surplus',shown(safe,'monthly_surplus_estimate')],['Emergency buffer',safe.values.buffer_months?safe.values.buffer_months+' months':'']]}/>
+      <Waterfall rows={[['','Available balance',shown(safe,'available')],['−','Bills due before payday',shown(safe,'commitments_until_payday')],['−','Card payment due before payday',shown(safe,'card_payment_until_payday')],['−','Goal contributions set aside',shown(safe,'goal_contributions_reserved')],['−','Everyday spending'+(days?' for '+days+' days':''),shown(safe,'everyday_spending_until_payday')],['=','Safe to spend',shown(safe,'headroom_until_payday')]]}/>
+      <Stats items={[['Projected balance in 30 days',shown(safe,'projected_30d_balance')],['Monthly surplus before goals',shown(safe,'monthly_surplus_estimate')],['Emergency buffer',safe.values.buffer_months?safe.values.buffer_months+' months':'']]}/>
+      <p className="mvp-caption">Everyday spending is your 90-day average without bills. Goal savings sit in separate pockets.</p>
       <Ask text="How much can I safely spend this month?" compose={compose}/>
+    </Block>}
+    {(usable(recurring)||bills.length>0)&&<Block title="Bills and subscriptions" note={shown(recurring,'bills_monthly_total')?shown(recurring,'bills_monthly_total')+' a month':'Monthly estimates'}>
+      {list(fixed)}
+      {regular.length>0&&<>
+        <header className="mvp-subhead"><h4>Regular spending</h4><small className="tabular">{shown(recurring,'regular_monthly_total')?shown(recurring,'regular_monthly_total')+' a month':''}</small></header>
+        {list(regular)}
+      </>}
+      <p className="mvp-caption">Monthly estimates from 90 days. No payment or cancellation is made here.</p>
+      <Ask text="Are there subscriptions or recurring costs I can cut?" compose={compose}/>
     </Block>}
     {usable(salary)&&<Block title={salary.title}>
       <Stats items={[['Salary',shown(salary,'salary_amount')],['Usually paid on day',salary.values.salary_day]]}/>
       {salary.explanation&&<p className="mvp-caption">{salary.explanation}</p>}
-    </Block>}
-    {(usable(recurring)||bills.length>0)&&<Block title="Recurring payments" note="Monthly estimates">
-      <Stats items={[['Essential',shown(recurring,'essential_total')],['Variable',shown(recurring,'variable_total')],['Discretionary',shown(recurring,'discretionary_total')],['Recurring merchants',recurring?.values.merchant_count]]}/>
-      {visible.length>0&&<ul className="mvp-rows">{visible.map(billRow)}</ul>}
-      {hidden.length>0&&<details className="mvp-more"><summary>Show {hidden.length} more</summary><ul className="mvp-rows">{hidden.map(billRow)}</ul></details>}
-      <p className="mvp-caption">No payment or cancellation is made here.</p>
-      <Ask text="Are there subscriptions or recurring costs I can cut?" compose={compose}/>
     </Block>}
     {usable(idle)&&<Block title={idle.title}>
       <p className="mvp-sentence">{shown(idle,'idle_cash')} surplus above 3x monthly outflow. {idle.explanation}</p>

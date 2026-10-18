@@ -62,8 +62,9 @@ def build(intent: str, financial: list, kb: dict) -> Optional[tuple[str, list[st
     if intent == 'safe' and (c := card(financial, 'safe_to_spend')):
         v = display_values(c)
         until = f"before your next salary on {v['payday']}" if 'payday' in v else 'over the next 30 days'
-        return (f"{until[0].upper() + until[1:]} you can expect about {v['headroom_until_payday']} left: {v['available']} available minus typical spending of {v['expected_spending_until_payday']}. "
-                f"Over the next 30 days the projection is {v['projected_30d_balance']}, and your typical monthly surplus is {v['monthly_surplus_estimate']}.\n\n"
+        return (f"{until[0].upper() + until[1:]} you can expect about {v['headroom_until_payday']} left: {v['available']} available, minus bills due of {v['commitments_until_payday']}, "
+                f"card payment due of {v['card_payment_until_payday']}, {v['goal_contributions_reserved']} set aside for this month's goal contributions and everyday spending of {v['everyday_spending_until_payday']}. "
+                f"Over the next 30 days the projection is {v['projected_30d_balance']}, and your typical monthly surplus before goals is {v['monthly_surplus_estimate']}.\n\n"
                 f"Your cash covers {v.get('buffer_months', 'n/a')} months of typical spending. This is an estimate from your last 90 days, not a live balance or a guarantee.", ['safe_to_spend'])
     if intent == 'goals' and (c := card(financial, 'goal_progress')):
         v = display_values(c)
@@ -84,14 +85,14 @@ def build(intent: str, financial: list, kb: dict) -> Optional[tuple[str, list[st
         v = display_values(c)
         rows = [r for r in c['rows'] if r.get('type') == 'Discretionary'] or c['rows'][:3]
         lines = [f"- {r['label']} ({r['category']}): about {r['monthly_estimate']} a month" for r in rows[:4]]
-        return (f"Your recurring payments add up to {v['amount']} across {v['merchant_count']} merchants. The ones you control most are:\n" + '\n'.join(lines)
+        return (f"About {v['monthly_total']} a month repeats: {v['bills_count']} bills and subscriptions come to {v['bills_monthly_total']} and {v['regular_count']} regular merchants to {v['regular_monthly_total']}. The ones you control most are:\n" + '\n'.join(lines)
                 + "\n\nI can't cancel or change anything; do that with the merchant or in the bank's menus.", ['spending_control'])
     if intent == 'health' and (c := card(financial, 'net_worth')):
         v = display_values(c)
-        move = f" Your assets changed {v['assets_change_30d']} ({v['assets_change_30d_percent']}) over 30 days." if 'assets_change_30d' in v else ''
-        return (f"Your net worth is {v['net_worth']}: {v['assets_total']} of assets minus {v['liabilities_total']} owed.{move}\n\n"
+        move = f" Your accounts and investments changed {v['assets_change_30d']} ({v['assets_change_30d_percent']}) over 30 days." if 'assets_change_30d' in v else ''
+        return (f"Your net worth is {v['net_worth']}: {v['assets_total']} of assets, including {v.get('goal_savings', 'n/a')} in goal pockets, minus {v['liabilities_total']} owed.{move}\n\n"
                 f"Your cash buffer covers {v.get('buffer_months', 'n/a')} months of spending, you keep {v.get('savings_rate_percent', 'n/a')} of income, and minimum card payments take {v.get('debt_to_income_percent', 'n/a')} of income. "
-                'These are separate measures, not a score, and cover only the accounts and holdings linked to your profile.', ['financial_health'])
+                'These are separate measures, not a score, and cover only the accounts, goal pockets and holdings linked to your profile.', ['financial_health'])
     if intent == 'next' and (c := card(financial, 'next_actions')):
         lines = [f"{r['rank']}. {r['action']}: {r['reason']}" for r in c['rows'][:3]]
         return ('Here are the next steps worth considering, in order:\n' + '\n'.join(lines) + '\n\nThese are options, not product recommendations.', ['financial_health', 'debt_vs_save_invest'])

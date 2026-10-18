@@ -78,13 +78,13 @@ def test_default_policy_examples_all_resolve_to_their_declared_route():
 
 @pytest.mark.parametrize('question,facts', [
     ('Where is my money going and how can I stop overspending?', ['IDR 6,035,000', 'Groceries', '27.78%']),
-    ('How much can I safely spend this month?', ['IDR 10,643,888.89', '25 Oct 2026']),
+    ('How much can I safely spend this month?', ['IDR 9,452,222.22', 'IDR 2,000,000', 'IDR 1,047,777.78', '25 Oct 2026']),
     ('Am I on track for my goals?', ['IDR 1,875,000', 'IDR 375,000', 'Dana Pendidikan Anak']),
     ('Is my portfolio performing well and what should I do next?', ['IDR 15,524,000', '0.15%']),
     ('Should I pay down my credit card or invest extra cash?', ['IDR 84,000', 'IDR 8,750', '26 months']),
     ('Are there subscriptions or recurring costs I can cut?', ['Spotify AB', 'Restoran Padang Sederhana']),
     ('What product or action should I take next to improve my finances?', ['Pay off your credit card balance']),
-    ('How is my overall financial health and net worth trending?', ['IDR 23,824,000', '34.49%']),
+    ('How is my overall financial health and net worth trending?', ['IDR 31,824,000', 'IDR 8,000,000', '34.49%']),
     ('Why did my investments drop and should I sell?', ['down 6.10%', '3.4%']),
 ])
 def test_simulated_engine_answers_from_validated_figures_and_never_advises(question, facts):

@@ -105,11 +105,10 @@ export function holdingsOf(card?:RMInsight):Holding[]{
   return (card.rows||[]).map(row=>({label:row.label||'Holding',kind:row.asset_class||'',value:row.value||'',share:row.share_percent||'',gain:row.gain_loss||'',gainPct:row.gain_loss_percent||'',change30:row.change_30d_percent||'',since:row.holding_since||''}));
 }
 
-export type Bill={label:string;category:string;type:string;monthly:string;next:string;times:string;discretionary:boolean};
+export type Bill={label:string;category:string;type:string;group:string;cadence:string;monthly:string;next:string;times:string;discretionary:boolean};
 export function billsOf(card?:RMInsight):Bill[]{
   if(!usable(card))return [];
-  const bills=(card.rows||[]).map(row=>({label:row.label||'Recurring payment',category:row.category||'',type:row.type||'Recurring',monthly:row.monthly_estimate||row.typical_amount||'',next:shownDate(row.next_expected),times:row.times_90d||'',discretionary:row.type==='Discretionary'}));
-  return bills.filter(bill=>bill.discretionary).concat(bills.filter(bill=>!bill.discretionary));
+  return (card.rows||[]).map(row=>({label:row.label||'Recurring payment',category:row.category||'',type:row.type||'Recurring',group:row.group||'Bill or subscription',cadence:row.cadence||'',monthly:row.monthly_estimate||row.typical_amount||'',next:shownDate(row.next_expected),times:row.times_90d||'',discretionary:row.type==='Discretionary'}));
 }
 
 export type Step={rank:string;topic:string;action:string;reason:string};
@@ -119,6 +118,18 @@ export function stepsOf(card?:RMInsight):Step[]{
   return ranked.map((row,index)=>({rank:row.rank||String(index+1),topic:row.topic||'',action:row.action||'',reason:row.reason||''}));
 }
 export const PANEL_FOR_TOPIC:Record<string,Panel>={cash:'cash',debt:'worth',buffer:'cash',goal:'goals',spending:'cash',invest:'invest'};
+
+const DEFAULT_STARTERS=['Help me manage my cash flow','Why has my spending increased?','Explain time deposits'];
+const SERVICE_STARTER='I need help with a banking issue';
+export function startersOf(insights:Insights):string[]{
+  const picked:string[]=[];
+  const spend=insights.spending_breakdown,goal=insights.goal_progress,step=stepsOf(insights.next_actions)[0];
+  if(usable(spend)&&spend.values.biggest_increase_category)picked.push(`Why did my ${spend.values.biggest_increase_category.toLowerCase()} spending go up?`);
+  if(usable(goal)&&goal.values.goal_status==='BEHIND'&&goal.values.goal_name)picked.push(`How can I catch up on my ${goal.values.goal_name} goal?`);
+  if(step&&step.topic==='debt')picked.push('Should I pay off my credit card first?');
+  if(usable(insights.safe_to_spend))picked.push('How much can I safely spend until payday?');
+  return picked.concat(DEFAULT_STARTERS).filter((text,index,all)=>all.indexOf(text)===index).slice(0,3).concat(SERVICE_STARTER);
+}
 
 export type Tick={symbol:string;name:string;kind:string;price:string;changeText:string;direction:Direction;size:number};
 export type Market={open:boolean;asOf:string;sentiment:string;headline?:Tick;ticks:Tick[]};
@@ -135,20 +146,22 @@ export function marketOf(card?:RMInsight):Market|null{
   return {open:card.values.session!=='CLOSE',asOf:card.values.as_of||'',sentiment:card.values.sentiment||'',headline,ticks};
 }
 
-export type Pacing={headroom:number;spending:number;commitments:number;gap:boolean;untilPayday:boolean};
+export type Pacing={headroom:number;everyday:number;goals:number;bills:number;card:number;gap:boolean;untilPayday:boolean};
 export function pacingOf(cash?:RMInsight,safe?:RMInsight):Pacing|null{
   if(usable(safe)){
-    const available=geometry(safe.values.available),headroom=geometry(safe.values.headroom_until_payday),spending=geometry(safe.values.expected_spending_until_payday),commitments=geometry(safe.values.commitments_until_payday)||0;
-    if(available!==null&&available>0&&headroom!==null&&spending!==null){
-      const base=Math.max(available,spending+commitments);
-      return {headroom:Math.max(headroom,0)/base,spending:spending/base,commitments:commitments/base,gap:safe.status==='GAP'||headroom<0,untilPayday:true};
+    const part=(key:string)=>geometry(safe.values[key])||0;
+    const available=geometry(safe.values.available),headroom=geometry(safe.values.headroom_until_payday);
+    if(available!==null&&available>0&&headroom!==null){
+      const everyday=part('everyday_spending_until_payday'),goals=part('goal_contributions_reserved'),bills=part('commitments_until_payday'),card=part('card_payment_until_payday');
+      const base=Math.max(available,everyday+goals+bills+card);
+      return {headroom:Math.max(headroom,0)/base,everyday:everyday/base,goals:goals/base,bills:bills/base,card:card/base,gap:safe.status==='GAP'||headroom<0,untilPayday:true};
     }
   }
   if(usable(cash)){
     const available=geometry(cash.values.available),commitments=geometry(cash.values.commitments),free=geometry(cash.values.difference);
     if(available!==null&&available>0&&commitments!==null&&free!==null){
       const base=Math.max(available,commitments);
-      return {headroom:Math.max(free,0)/base,spending:0,commitments:commitments/base,gap:cash.status==='GAP'||free<0,untilPayday:false};
+      return {headroom:Math.max(free,0)/base,everyday:0,goals:0,bills:commitments/base,card:0,gap:cash.status==='GAP'||free<0,untilPayday:false};
     }
   }
   return null;

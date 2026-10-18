@@ -1,5 +1,5 @@
 """Planning calculators: figures are deterministic, signed correctly, honest about missing data and covered by the source hash."""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from app.core.database import SessionLocal
 from app.models.banking import BankAccount, BankCustomer, BankGoal, BankHolding
@@ -68,8 +68,41 @@ def test_recurring_subtotals_add_up_to_the_monthly_estimates_in_the_rows():
         recurring = cards(db)['recurring']
     v = recurring['values']
     assert (v['essential_total'], v['variable_total'], v['discretionary_total']) == ('2380000.00', '2483333.33', '705000.00')
+    assert Decimal(v['monthly_total']) == sum(Decimal(v[k]) for k in ('essential_total', 'variable_total', 'discretionary_total')) == Decimal('5568333.33')
+    assert Decimal(v['monthly_total']) == Decimal(v['bills_monthly_total']) + Decimal(v['regular_monthly_total'])
     transport = [r for r in recurring['rows'] if r['category'] == 'Transport']
     assert len(transport) == 3 and {r['category_monthly_total'] for r in transport} == {'IDR 683,333.33'}
+
+
+def test_weekly_shopping_is_regular_spending_not_a_subscription_and_is_expected_within_a_week():
+    with SessionLocal() as db:
+        recurring = cards(db)['recurring']
+    rows = {r['label']: r for r in recurring['rows']}
+    bills = {label for label, r in rows.items() if r['group'] == 'Bill or subscription'}
+    assert bills == {'SMP Islam Al-Azhar Bekasi', 'IndiHome Telkom', 'PLN Persero', 'BPJS Kesehatan', 'Spotify AB'}
+    assert recurring['values']['bills_count'] == '5' and recurring['values']['bills_monthly_total'] == '2425000.00'
+    for weekly in ('Super Indo Bekasi', 'Restoran Padang Sederhana'):
+        assert rows[weekly]['group'] == 'Regular spending' and rows[weekly]['cadence'] == 'Weekly'
+        assert date(2026, 10, 15) <= datetime.strptime(rows[weekly]['next_expected'], '%d %b %Y').date() <= date(2026, 10, 22)
+
+
+def test_safe_to_spend_is_available_minus_each_listed_use_and_reserves_goal_contributions():
+    with SessionLocal() as db:
+        v = cards(db)['safe_to_spend']['values']
+    uses = ('commitments_until_payday', 'card_payment_until_payday', 'everyday_spending_until_payday')
+    assert Decimal(v['expected_spending_until_payday']) == sum(Decimal(v[k]) for k in uses)
+    assert Decimal(v['headroom_until_payday']) == Decimal(v['available']) - Decimal(v['expected_spending_until_payday']) - Decimal(v['goal_contributions_reserved'])
+    assert (v['goal_contributions_reserved'], v['everyday_spending_until_payday'], v['headroom_until_payday']) == ('2000000.00', '1047777.78', '9452222.22')
+    assert v['projected_30d_balance'] == '13431666.67'
+
+
+def test_card_minimum_due_before_payday_is_part_of_expected_spending():
+    with SessionLocal() as db:
+        for account in dina_accounts(db, 'CREDIT_CARD'):
+            account.payment_due_day = 20
+        db.commit()
+        v = cards(db)['safe_to_spend']['values']
+    assert v['card_payment_until_payday'] == '210000.00' and v['headroom_until_payday'] == '9242222.22'
 
 
 def test_goal_is_on_track_once_the_plan_covers_the_requirement():
@@ -105,10 +138,10 @@ def test_portfolio_keeps_the_sign_of_losses_and_allocation_adds_up():
     assert 'holding_since' not in next(r for r in portfolio['rows'] if r['label'] == 'Reksa Dana Indeks IDX30')
 
 
-def test_net_worth_subtracts_liabilities_and_omits_unknown_history():
+def test_net_worth_counts_goal_pockets_subtracts_liabilities_and_omits_unknown_history():
     with SessionLocal() as db:
         worth = cards(db)['net_worth']['values']
-        assert (worth['assets_total'], worth['liabilities_total'], worth['net_worth']) == ('28024000.00', '4200000.00', '23824000.00')
+        assert (worth['assets_total'], worth['goal_savings'], worth['liabilities_total'], worth['net_worth']) == ('36024000.00', '8000000.00', '4200000.00', '31824000.00')
         assert worth['assets_change_30d'] == '2190000.00'
         db.query(BankHolding).filter_by(instrument='Reksa Dana Indeks IDX30').update({'value_30d_ago': None})
         db.commit()

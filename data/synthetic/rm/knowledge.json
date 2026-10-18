@@ -327,13 +327,13 @@
   {
     "key": "financial_health",
     "title": "Financial health · Net worth, buffer and savings rate",
-    "body": "Net worth is everything owned in the linked accounts and holdings minus everything owed. Useful companion measures are the cash buffer (months of typical spending held in accessible cash), the savings rate (the share of income left after spending) and the share of income that goes to minimum debt payments. They are shown as separate measures rather than a single score, and they cover only the accounts and holdings linked to the customer's profile.",
+    "body": "Net worth is everything owned in the linked accounts, goal savings pockets and holdings minus everything owed. Useful companion measures are the cash buffer (months of typical spending held in accessible cash), the savings rate (the share of income left after spending) and the share of income that goes to minimum debt payments. They are shown as separate measures rather than a single score, and they cover only the accounts, goal pockets and holdings linked to the customer's profile.",
     "topics": ["net worth", "financial health", "health", "wealth", "assets", "liabilities", "buffer", "savings rate", "trend", "trending", "how am i doing", "overall", "finances", "position"]
   },
   {
     "key": "safe_to_spend",
     "title": "Safe-to-spend estimate · Method and limits",
-    "body": "The safe-to-spend estimate takes the available balance and subtracts typical spending until the next salary date, using the 90-day average and never less than the recurring bills known to fall due in that period. It also shows a 30-day projection that adds the expected salary. It is a planning estimate based on past behavior: unusual purchases, delayed income and price changes are not predicted, and it is not a live balance.",
+    "body": "The safe-to-spend estimate starts from the available balance and subtracts, until the next salary date: bills and subscriptions known to fall due, any card payment due, this month's planned goal contributions (goal savings sit in separate pockets) and everyday spending at the 90-day average excluding bills. Each part is shown so the figures add up. It also shows a 30-day projection that adds the expected salary and subtracts typical spending and goal contributions. It is a planning estimate based on past behavior: unusual purchases, delayed income and price changes are not predicted, and it is not a live balance.",
     "topics": ["safe to spend", "safely", "safe", "shortfall", "payday", "month end", "enough", "afford", "how much can i spend", "how much can i save", "run out", "this month"]
   },
   {

@@ -53,15 +53,19 @@ same(m.allocationOf(portfolio).map(s=>[s.label,s.weight,s.text]),[['Equity',54.4
 same(m.allocationOf(card('portfolio',{equity_percent:'100.00',bond_percent:'0.00'})).map(s=>s.label),['Equity'],'zero and missing classes are not drawn');
 
 const cash=card('cash_flow',{available:'12500000.00',commitments:'4700000.00',difference:'7800000.00'});
-const safe=card('safe_to_spend',{available:'12500000.00',commitments_until_payday:'0.00',expected_spending_until_payday:'1856111.11',headroom_until_payday:'10643888.89'});
+const safe=card('safe_to_spend',{available:'12500000.00',commitments_until_payday:'0.00',card_payment_until_payday:'0.00',everyday_spending_until_payday:'1047777.78',goal_contributions_reserved:'2000000.00',expected_spending_until_payday:'1047777.78',headroom_until_payday:'9452222.22'});
 const pace=m.pacingOf(cash,safe);
-near(pace.headroom+pace.spending+pace.commitments,1,'pacing shares add up to the available funds');
-assert.ok(pace.untilPayday&&!pace.gap&&pace.headroom>0.85&&pace.headroom<0.86);
-const shortfall=m.pacingOf(cash,card('safe_to_spend',{available:'1000.00',expected_spending_until_payday:'1500.00',commitments_until_payday:'0.00',headroom_until_payday:'-500.00'},[],{status:'GAP'}));
+const filled=p=>p.headroom+p.everyday+p.goals+p.bills+p.card;
+near(filled(pace),1,'safe to spend, everyday spending and the goal set-aside add up to the available funds');
+assert.ok(pace.untilPayday&&!pace.gap&&pace.goals>0.159&&pace.goals<0.161&&pace.headroom>0.756&&pace.headroom<0.757);
+const shortfall=m.pacingOf(cash,card('safe_to_spend',{available:'1000.00',everyday_spending_until_payday:'900.00',goal_contributions_reserved:'400.00',commitments_until_payday:'200.00',card_payment_until_payday:'0.00',headroom_until_payday:'-500.00'},[],{status:'GAP'}));
 assert.ok(shortfall.gap&&shortfall.headroom===0);
-near(shortfall.headroom+shortfall.spending+shortfall.commitments,1,'a shortfall still fills the bar exactly once');
+near(filled(shortfall),1,'a shortfall still fills the bar exactly once');
 const fortnight=m.pacingOf(cash,undefined);
-assert.ok(!fortnight.untilPayday);near(fortnight.headroom+fortnight.commitments,1,'cash-flow fallback adds up');
+assert.ok(!fortnight.untilPayday);near(filled(fortnight),1,'cash-flow fallback adds up');
+same(m.startersOf({}),['Help me manage my cash flow','Why has my spending increased?','Explain time deposits','I need help with a banking issue']);
+const personal=m.startersOf({spending_breakdown:card('spending_breakdown',{biggest_increase_category:'Transport'}),goal_progress:card('goal_progress',{goal_status:'BEHIND',goal_name:'Dana Darurat'}),next_actions:card('next_actions',{},[{rank:'1',topic:'debt',action:'Pay off your card',reason:''}]),safe_to_spend:safe});
+same(personal,['Why did my transport spending go up?','How can I catch up on my Dana Darurat goal?','Should I pay off my credit card first?','I need help with a banking issue']);
 assert.equal(m.pacingOf(card('cash_flow',{available:'0.00',commitments:'1.00',difference:'-1.00'}),undefined),null,'no balance, no bar');
 
 const trend=card('balance_trend',{},[],{series:[{date:'2026-10-16',balance:'100.00'},{date:'2026-10-17',balance:'300.00'},{date:'2026-10-18',balance:'200.00'}]});

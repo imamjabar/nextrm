@@ -65,7 +65,7 @@ assert.ok(/\+27\.78%/.test(labelText(tree.root)));
 assert.ok(!labelText(tree.root).includes('27.78 IDR'));
 await click(tree,'Chats');await click(tree,'History');assert.ok(labelText(tree.root).includes('A saved chat'));await act(async()=>tree.root.findAllByType('button').find(n=>n.props.className==='mvp-history-row').props.onClick());await click(tree,'Home');
 console.log('PASS focused home/new-chat/history, no sharing/request UI, correct snapshot/percentage units and exact AI caution');
-await click(tree,'Explore');
+await act(async()=>tree.root.findAll(n=>n.type==='button'&&n.props['data-open']==='explore')[0].props.onClick());
 const product=tree.root.findAllByType('details').find(n=>n.props.className==='mvp-product-detail');assert.ok(product);
 await act(async()=>product.props.onToggle({currentTarget:{open:true}}));
 await click(tree,'Ask the assistant about this');
@@ -112,7 +112,7 @@ const panels=[
   ['spending',['Where your money went','IDR 2,400,000'],['Where is my money going and how can I spend less?']],
   ['goals',['Your goals','IDR 30,000,000'],['Am I on track for my goals?']],
   ['invest',['Investments','Snapshot as of 15 Oct 2026. Information, not advice.'],['How are my investments doing?','Why did my fund drop?']],
-  ['cash',['Safe to spend','Recurring payments','Gym'],['How much can I safely spend this month?','Are there subscriptions or recurring costs I can cut?']],
+  ['cash',['Safe to spend','Bills and subscriptions','Gym'],['How much can I safely spend this month?','Are there subscriptions or recurring costs I can cut?']],
   ['worth',['Net worth and financial health','Credit card cost'],['How is my overall financial health?','Should I pay down my credit card or save more?']],
   ['steps',['Suggested next steps','Pay high-interest card first'],['What should I do next to improve my finances?']]
 ];

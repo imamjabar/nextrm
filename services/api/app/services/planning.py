@@ -173,21 +173,30 @@ def safe_to_spend_card(features: dict[str, Any], source: dict, cur: str) -> dict
     payday = next_payday(as_of_date, features['salary_day']) if features['salary_detected'] and features['salary_day'] else None
     horizon = payday or as_of_date + timedelta(days=30)
     days = (horizon - as_of_date).days
-    commitments = sum((b['amount'] for b in features['recurring_bills'] if as_of_date <= b['next_expected_date'] <= horizon), ZERO)
-    expected_spend = max(q2(outflow * Decimal(days) / Decimal(30)), commitments)
-    headroom = balance - expected_spend
+    bills = [b for b in features['recurring_bills'] if b['kind'] == 'BILL']
+    bills_due = sum((b['amount'] for b in bills if as_of_date <= b['next_expected_date'] <= horizon), ZERO)
+    facts = features['planning']
+    card_due = sum((c['minimum'] for c in facts['cards'] if c['minimum'] and c['due_day'] and next_payday(as_of_date, c['due_day']) <= horizon), ZERO)
+    everyday_monthly = max(outflow - sum((b['monthly_estimate'] for b in bills), ZERO), ZERO)
+    everyday = q2(everyday_monthly * Decimal(days) / Decimal(30))
+    goals_reserved = sum((g['plan'] for g in facts['goals'] if g['saved'] < g['target']), ZERO)
+    expected_spend = bills_due + card_due + everyday
+    headroom = balance - expected_spend - goals_reserved
     income_30d = features['salary_amount'] if payday and features['salary_amount'] > 0 else income
-    projected = balance + income_30d - outflow
-    values = {'available': fixed(balance), 'commitments_until_payday': fixed(commitments), 'expected_spending_until_payday': fixed(expected_spend),
-              'headroom_until_payday': fixed(headroom), 'days_to_payday': str(days), 'expected_income_30d': fixed(income_30d),
-              'projected_30d_balance': fixed(projected), 'monthly_surplus_estimate': fixed(income - outflow)}
+    projected = balance + income_30d - outflow - goals_reserved
+    values = {'available': fixed(balance), 'commitments_until_payday': fixed(bills_due), 'card_payment_until_payday': fixed(card_due),
+              'everyday_spending_until_payday': fixed(everyday), 'expected_spending_until_payday': fixed(expected_spend),
+              'goal_contributions_reserved': fixed(goals_reserved), 'headroom_until_payday': fixed(headroom), 'days_to_payday': str(days),
+              'expected_income_30d': fixed(income_30d), 'projected_30d_balance': fixed(projected), 'monthly_surplus_estimate': fixed(income - outflow)}
     if payday:
         values['payday'] = payday.isoformat()
+    values['as_of'] = as_of_date.isoformat()
     if outflow > 0:
         values['buffer_months'] = fixed(balance / outflow)
     where = f'before your next salary on {date_text(payday.isoformat())}' if payday else 'over the next 30 days'
-    explanation = (f'Estimate {where}: {money_text(balance, cur)} available minus typical spending of {money_text(expected_spend, cur)} leaves {money_text(headroom, cur)}. '
-                   'Typical spending is your 90-day average; this is a planning estimate, not a live balance or a guarantee.')
+    explanation = (f'Estimate {where}: {money_text(balance, cur)} available, minus bills due of {money_text(bills_due, cur)}, card payment due of {money_text(card_due, cur)}, '
+                   f'this month\'s goal contributions of {money_text(goals_reserved, cur)} set aside and everyday spending of {money_text(everyday, cur)}, leaves {money_text(headroom, cur)}. '
+                   'Everyday spending is your 90-day average excluding bills; goal savings sit in separate pockets. This is a planning estimate, not a live balance or a guarantee.')
     status = 'GAP' if headroom < 0 or projected < 0 else 'AVAILABLE'
     return card('safe_to_spend', status, values, explanation, source, cur, evidence={'horizon_days': days, 'method': 'PLAN-1'})
 
@@ -225,12 +234,14 @@ def goal_progress_card(features: dict[str, Any], evaluated: list[dict[str, Any]]
               'goals_count': str(len(evaluated)), 'planned_total_monthly': fixed(total('plan')), 'monthly_surplus_estimate': fixed(surplus),
               'required_monthly_total': fixed(total('required')), 'extra_monthly_needed_total': fixed(total('extra')), 'shortfall_total': fixed(total('shortfall')),
               'remaining_total': fixed(total('remaining')), 'surplus_after_planned_goals': fixed(surplus - total('plan')),
-              'surplus_after_required_goals': fixed(surplus - total('required'))}
+              'surplus_after_required_goals': fixed(surplus - total('required')), 'goal_savings': fixed(total('saved')),
+              'goal_contributions_reserved': fixed(sum((g['plan'] for g in evaluated if g['status'] != 'COMPLETE'), ZERO))}
     if lead['needed'] is not None:
         values['months_needed_at_plan'] = str(lead['needed'])
     verb = {'COMPLETE': 'is fully funded', 'ON_TRACK': 'is on track at the current monthly plan', 'BEHIND': 'is behind at the current monthly plan'}[lead['status']]
     explanation = (f"{lead['name']} {verb}: {money_text(lead['saved'], cur)} of {money_text(lead['target'], cur)} saved, {lead['left']} monthly contributions left, "
-                   f"{money_text(lead['required'], cur)} a month needed against a plan of {money_text(lead['plan'], cur)}. Projection ignores investment returns and interest.")
+                   f"{money_text(lead['required'], cur)} a month needed against a plan of {money_text(lead['plan'], cur)}. Projection ignores investment returns and interest. "
+                   f"Goal savings of {money_text(total('saved'), cur)} sit in separate pockets, not in your available balance; this month's planned contributions are set aside in safe to spend.")
     return card('goal_progress', 'AVAILABLE', values, explanation, source, cur, rows, {'method': 'PLAN-1', 'projection': 'saved + monthly plan x remaining months'})
 
 
@@ -307,18 +318,20 @@ def portfolio_card(facts: dict[str, Any], source: dict, cur: str) -> dict[str, A
 
 def net_worth_card(features: dict[str, Any], facts: dict[str, Any], source: dict, cur: str) -> dict[str, Any]:
     liquid, deposits = features['balance_now'], facts['deposits_total']
+    pockets = sum((g['saved'] for g in facts['goals']), ZERO)
     investments = sum((h['value'] for h in facts['holdings']), ZERO)
     liabilities = sum((c['balance'] for c in facts['cards']), ZERO)
-    assets = liquid + deposits + investments
+    assets = liquid + deposits + pockets + investments
     if assets <= 0 and liabilities <= 0:
         return card('net_worth', 'UNAVAILABLE', {}, UNAVAILABLE_TEXT['net_worth'], source, cur)
-    values = {'assets_total': fixed(assets), 'liquid_assets': fixed(liquid), 'deposit_assets': fixed(deposits), 'investment_assets': fixed(investments),
-              'liabilities_total': fixed(liabilities), 'net_worth': fixed(assets - liabilities)}
+    values = {'assets_total': fixed(assets), 'liquid_assets': fixed(liquid), 'deposit_assets': fixed(deposits), 'goal_savings': fixed(pockets),
+              'investment_assets': fixed(investments), 'liabilities_total': fixed(liabilities), 'net_worth': fixed(assets - liabilities)}
     if all(h['value_30d_ago'] is not None for h in facts['holdings']):
+        tracked = liquid + deposits + investments
         previous = features['balance_30d_ago'] + facts['deposits_30d_ago'] + sum((h['value_30d_ago'] for h in facts['holdings']), ZERO)
-        values['assets_change_30d'] = fixed(assets - previous)
+        values['assets_change_30d'] = fixed(tracked - previous)
         if previous > 0:
-            values['assets_change_30d_percent'] = fixed(ratio_percent(assets - previous, previous))
+            values['assets_change_30d_percent'] = fixed(ratio_percent(tracked - previous, previous))
     outflow, income = features['monthly_outflow'], features['avg_monthly_income']
     if outflow > 0:
         values['buffer_months'] = fixed(liquid / outflow)
@@ -328,10 +341,12 @@ def net_worth_card(features: dict[str, Any], facts: dict[str, Any], source: dict
         if minimum > 0:
             values['debt_to_income_percent'] = fixed(ratio_percent(minimum, income))
     rows = [{'label': 'Savings and current accounts', 'amount': money_text(liquid, cur)}, {'label': 'Term deposits', 'amount': money_text(deposits, cur)},
-            {'label': 'Investments', 'amount': money_text(investments, cur)}, {'label': 'Credit card balances (owed)', 'amount': money_text(liabilities, cur)}]
+            {'label': 'Goal savings pockets', 'amount': money_text(pockets, cur)}, {'label': 'Investments', 'amount': money_text(investments, cur)},
+            {'label': 'Credit card balances (owed)', 'amount': money_text(liabilities, cur)}]
     explanation = (f'Assets of {money_text(assets, cur)} minus {money_text(liabilities, cur)} owed give a net worth of {money_text(assets - liabilities, cur)}. '
-                   'Card balance history is unavailable, so the 30-day change covers assets only. Health is shown as separate measures, not a single score.')
-    return card('net_worth', 'AVAILABLE', values, explanation, source, cur, rows, {'method': 'PLAN-1', 'scope': 'accounts and holdings linked to this profile'})
+                   'Goal pockets are held apart from your available balance. Card balance and goal pocket history are unavailable, so the 30-day change covers accounts and investments only. '
+                   'Health is shown as separate measures, not a single score.')
+    return card('net_worth', 'AVAILABLE', values, explanation, source, cur, rows, {'method': 'PLAN-1', 'scope': 'accounts, goal pockets and holdings linked to this profile'})
 
 
 def next_actions_card(features: dict[str, Any], evaluated: list[dict[str, Any]], debt: dict[str, Any], worth: dict[str, Any], source: dict, cur: str) -> dict[str, Any]:

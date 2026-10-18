@@ -6,6 +6,7 @@ export function insightValue(key:string,value:string,currency:string|null|undefi
   const decimal=match[3]!==undefined&&/[1-9]/.test(match[3])?'.'+match[3]:'';
   const amount=match[1]+grouped+decimal;
   if(key.endsWith('_percent'))return amount+'%';
+  if(/(_count|_day|_months|^days_|^months_)/.test(key))return amount;
   return currency?currency+' '+amount:amount;
 }
 export function insightLabel(key:string):string {
@@ -70,7 +71,17 @@ export function insightLabel(key:string):string {
     spend_to_income_percent:'Spend-to-income ratio',
     biggest_increase_category:'Highest increase category',
     biggest_increase_percent:'Highest increase',
-    merchant_count:'Active subscriptions',
+    merchant_count:'Recurring merchants',
+    monthly_total:'Repeats each month',
+    bills_count:'Bills and subscriptions',
+    bills_monthly_total:'Bills and subscriptions each month',
+    regular_count:'Regular merchants',
+    regular_monthly_total:'Regular spending each month',
+    commitments_until_payday:'Bills due before payday',
+    card_payment_until_payday:'Card payment due before payday',
+    everyday_spending_until_payday:'Everyday spending until payday',
+    goal_contributions_reserved:'Goal contributions set aside',
+    goal_savings:'Goal savings pockets',
     discretionary_total:'Discretionary spend',
     label:'Description',
     target:'Target',
