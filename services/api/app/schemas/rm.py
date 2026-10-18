@@ -13,7 +13,8 @@ class RMParty(BaseModel):
 class RMParties(BaseModel):
     parties:list[RMParty]
 class RMSignal(BaseModel):
-    id:str;party_id:str;name:str;category:str;urgency:str;evidence:str;workflow:str;review:str;title:str;need:str;rationale:str;uncertainty:str;confirmed:bool;version:int;source_id:str;turn_id:str|None;created_at:str;display_label:str;contact:str;origin:Literal['CHAT','APP','INSIGHT','EVENT'];group:Literal['PROBLEM','READY','ASKED','SPOTTED']
+    id:str;party_id:str;name:str;category:str;urgency:str;evidence:str;workflow:str;review:str;title:str;need:str;rationale:str;uncertainty:str;confirmed:bool;version:int;source_id:str;turn_id:str|None;created_at:str;display_label:str;contact:str;origin:Literal['CHAT','APP','INSIGHT','EVENT','REQUEST'];group:Literal['PROBLEM','READY','ASKED','SPOTTED']
+    contact_method:str|None=None;contact_window:str|None=None
 class RMSignals(BaseModel):
     signals:list[RMSignal];parties:list[RMParty]
 class RMProspect(BaseModel):
@@ -42,7 +43,7 @@ class RMTool(BaseModel):
     name:str;duration_ms:int;status:str;scope:str
 class RMTurn(BaseModel):
     id:str;message:str;answer:str;status:str;route:str;mode:str;model:str;created_at:str;latency_ms:int;sources:list[RMSource];tools:list[RMTool];signal_id:str|None;error_code:str|None
-    sharing_status:str='NOT_RECORDED';governance:dict|None=None;suggestions:list[str]=Field(default_factory=list);thinking_level:str|None=None
+    sharing_status:str='NOT_RECORDED';governance:dict|None=None;suggestions:list[str]=Field(default_factory=list);thinking_level:str|None=None;rm_suggested:bool=False
 class RMConversation(BaseModel):
     id:str;party:RMParty;institution_name:str;version:int;turns:list[RMTurn];provider:str;provider_ready:bool
     older_cursor:str|None=None
@@ -55,6 +56,7 @@ class RMCheckpoint(BaseModel):
 class RMJourney(BaseModel):
     id:str;party_id:str;name:str;kind:str;need:str;status:str;stage:int;version:int;operation_ref:str;draft:str;source_id:str;signal_id:str|None;prospect_id:str|None;history:list[RMCheckpoint];completion_rule:str;mode:str;due_at:str|None=None
     snoozed_until:str|None=None;outcome:str|None=None
+    contact_method:str|None=None;contact_window:str|None=None
 class RMJourneys(BaseModel):
     journeys:list[RMJourney]
 class RMReviewHistory(BaseModel):
@@ -137,8 +139,21 @@ class RMNudgeAction(StrictRM):
 
 class RMCustomerRequest(BaseModel):
     id:str;message:str;status:str;created_at:str;updated_at:str;due_at:str|None;mode:str
+    contact_method:str|None=None;contact_window:str|None=None
 class RMCustomerRequests(BaseModel):
     requests:list[RMCustomerRequest];boundary:str
+
+class RMCustomerRequestIn(StrictRM):
+    request_key:str=Field(min_length=8,max_length=100)
+    message:str=Field(min_length=3,max_length=1000)
+    method:Literal['PHONE_CALL','VIDEO_CALL','BRANCH_MEETING','EMAIL']
+    window:Literal['MORNING','AFTERNOON','ANY_TIME']
+    turn_id:str|None=None
+
+class RMContactPreferenceIn(StrictRM):
+    request_key:str=Field(min_length=8,max_length=100)
+    method:Literal['PHONE_CALL','VIDEO_CALL','BRANCH_MEETING','EMAIL']
+    window:Literal['MORNING','AFTERNOON','ANY_TIME']
 
 class RMEngagementProfile(BaseModel):
     version:int;goal:str;horizon:str;interests:list[str];share_context:bool;source_id:str|None;topic_snoozes:dict[str,str];commercial_allowed:bool

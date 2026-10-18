@@ -37,8 +37,8 @@ def test_rm_snapshot_shows_the_customer_home_figures_and_is_rm_only():
     for user in ['usr-dina','usr-aiadmin']:assert c.get('/v1/rm/parties/'+pid+'/snapshot',headers=h(user)).status_code==403
 
 def test_rm_followup_progress_reaches_the_customer_without_internal_notes():
-    r,_=chat('Talk to my RM about my portfolio');assert r.status_code==200 and r.json()['signal_id'],r.text
-    sid=r.json()['signal_id'];s=next(x for x in c.get('/v1/rm/signals',headers=h()).json()['signals'] if x['id']==sid)
+    r=c.post('/v1/rm/chat/'+dina()['id']+'/requests',headers=h('usr-dina'),json={'request_key':str(uuid.uuid4()),'message':'Talk to my RM about my portfolio','method':'PHONE_CALL','window':'MORNING'});assert r.status_code==200
+    sid=r.json()['id'];s=next(x for x in c.get('/v1/rm/signals',headers=h()).json()['signals'] if x['id']==sid)
     s=c.post('/v1/rm/signals/'+sid+'/review',headers=h(),json={'base_version':s['version'],'decision':'ACCEPTED','confirmed':True}).json()
     j=c.post('/v1/rm/signals/'+sid+'/follow-up',headers=h(),json={'base_version':s['version'],'request_key':str(uuid.uuid4())});assert j.status_code==200,j.text;j=j.json()
     u=c.post('/v1/rm/follow-ups/'+j['id'],headers=h(),json={'base_version':j['version'],'request_key':str(uuid.uuid4()),'action':'START','note':'Private validation-only note','due_at':'2030-01-15T10:00:00+07:00'});assert u.status_code==200,u.text
@@ -55,9 +55,9 @@ def test_seeded_story_is_linked_repeat_safe_and_reaches_both_sides():
     for user,name in [('usr-aditya','Aditya Pratama'),('usr-nabila','Nabila Aulia')]:
         me=c.get('/v1/auth/me',headers=h(user));assert me.status_code==200 and me.json()['user']['role']=='CUSTOMER'
         parties=own_party(user);assert [x['name'] for x in parties]==[name]
-    nabila=own_party('usr-nabila')[0]['id']
-    requests=c.get('/v1/rm/chat/'+nabila+'/requests',headers=h('usr-nabila')).json()['requests']
-    assert any('debit card' in x['message'] and x['status']=='RM_PREPARING' for x in requests)
+    dina_p=own_party('usr-dina')[0]['id']
+    requests=c.get('/v1/rm/chat/'+dina_p+'/requests',headers=h('usr-dina')).json()['requests']
+    assert any('school fees' in x['message'] for x in requests)
     assert any(x['kind']=='CHAT' and x['name']=='Aditya Pratama' and 'term deposit' in x['text'] for x in today()['activity'])
 
 def test_today_queue_is_care_first_then_newest():

@@ -30,6 +30,19 @@ GAZETTEER = [
     {"label": "Kuningan Epicentrum - Setiabudi, Jakarta Selatan", "latitude": "-6.218500", "longitude": "106.832200"},
     {"label": "Kelapa Gading Boulevard - Jakarta Utara", "latitude": "-6.158200", "longitude": "106.908000"},
     {"label": "Pondok Indah Mall - Kebayoran Lama, Jakarta Selatan", "latitude": "-6.265200", "longitude": "106.784200"},
+    {"label": "Jakarta Pusat - Thamrin & Sudirman Financial District", "latitude": "-6.195000", "longitude": "106.823000"},
+    {"label": "Singapore - Central Business District / Marina Bay", "latitude": "1.284000", "longitude": "103.851000"},
+    {"label": "Singapore - Orchard Road Commercial Area", "latitude": "1.304800", "longitude": "103.831800"},
+    {"label": "Singapore - Raffles Place Financial Center", "latitude": "1.283800", "longitude": "103.851500"},
+    {"label": "Singapore - Changi Business Park & Aviation Hub", "latitude": "1.334000", "longitude": "103.962000"},
+    {"label": "Singapore - Jurong East Commercial Gateway", "latitude": "1.333100", "longitude": "103.743600"},
+    {"label": "Bandung - Dago & Asia Afrika Commercial Corridor", "latitude": "-6.917500", "longitude": "107.619100"},
+    {"label": "Surabaya - Tunjungan & Pemuda Central Business District", "latitude": "-7.257500", "longitude": "112.752100"},
+    {"label": "Medan - Kesawan Commercial & Trade District", "latitude": "3.595200", "longitude": "98.672200"},
+    {"label": "Bali - Denpasar & Kuta Commercial Hub", "latitude": "-8.670500", "longitude": "115.212600"},
+    {"label": "Semarang - Simpang Lima Commercial Center", "latitude": "-6.992500", "longitude": "110.420300"},
+    {"label": "Yogyakarta - Malioboro & Kotabaru Commercial Area", "latitude": "-7.795600", "longitude": "110.369500"},
+    {"label": "Kuala Lumpur - KLCC & Bukit Bintang Commercial Center", "latitude": "3.157800", "longitude": "101.712300"}
 ]
 
 
@@ -210,9 +223,29 @@ class SyntheticProvider:
 
     def geocode(self, db: Session, user, q: str) -> dict:
         results = []
-        qs = q.strip().casefold()
+        raw_q = q.strip()
+        qs = raw_q.casefold()
         if len(qs) < 2:
             return {"provider": self.provider_name, "results": []}
+
+        # Direct coordinate matching: "lat, lng" or "lat lng"
+        import re
+        coord_match = re.match(r"^([+-]?\d{1,2}(?:\.\d+)?)[,\s]+([+-]?\d{1,3}(?:\.\d+)?)$", raw_q)
+        if coord_match:
+            try:
+                c_lat = float(coord_match.group(1))
+                c_lng = float(coord_match.group(2))
+                if -90 <= c_lat <= 90 and -180 <= c_lng <= 180:
+                    return {
+                        "provider": self.provider_name,
+                        "results": [{
+                            "label": f"Coordinates ({c_lat:.4f}, {c_lng:.4f})",
+                            "latitude": f"{c_lat:.6f}",
+                            "longitude": f"{c_lng:.6f}"
+                        }]
+                    }
+            except ValueError:
+                pass
 
         # Search seeded places
         pois = db.query(PoiPlace).filter(
@@ -232,16 +265,18 @@ class SyntheticProvider:
                         "longitude": str(p.longitude)
                     })
 
-        # Search gazetteer
+        # Search gazetteer with full match and token match
+        tokens = [t for t in qs.replace(",", " ").split() if len(t) >= 2]
         for g in GAZETTEER:
-            if qs in g["label"].casefold():
-                if g["label"] not in seen_labels:
-                    seen_labels.add(g["label"])
-                    results.append({
-                        "label": g["label"],
-                        "latitude": g["latitude"],
-                        "longitude": g["longitude"]
-                    })
+            gl = g["label"].casefold()
+            matched = qs in gl or (tokens and all(t in gl for t in tokens))
+            if matched and g["label"] not in seen_labels:
+                seen_labels.add(g["label"])
+                results.append({
+                    "label": g["label"],
+                    "latitude": g["latitude"],
+                    "longitude": g["longitude"]
+                })
 
         return {
             "provider": self.provider_name,

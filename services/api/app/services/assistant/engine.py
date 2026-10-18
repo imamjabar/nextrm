@@ -58,7 +58,8 @@ def human_help_requested(message):
     text=message.casefold()
     if declines_followup(message):return False
     if any(v in text for v in ["don't contact",'do not contact','no marketing','unsubscribe','no human help','do not call']):return False
-    return any(v in text for v in ['speak to my rm','talk to my rm','speak to an rm','talk to an rm','ask my rm','request rm help','i need human help','i want human help','i would like human help','speak to a relationship manager','speak to my relationship manager','talk to a relationship manager','please call','contact me','arrange a discussion','can an rm','connect with my rm','connect me with my rm','connect with my relationship manager','involve my rm','involve my relationship manager','review this with my rm','review it with my rm','rm to review','relationship manager to review'])
+    if any(v in text for v in ['speak to my rm','talk to my rm','speak to an rm','talk to an rm','ask my rm','request rm help','i need human help','i want human help','i would like human help','speak to a relationship manager','speak to my relationship manager','talk to a relationship manager','please call','contact me','arrange a discussion','can an rm','connect with my rm','connect me with my rm','connect with my relationship manager','involve my rm','involve my relationship manager','review this with my rm','review it with my rm','rm to review','relationship manager to review']):return True
+    return bool(re.search(r"\b(my|an|the|a)\s+(rm|relationship manager)\b",text) and re.search(r"\b(call|talk|speak|explain|contact|meet|discuss|help|share|reach|ask|review|connect|involve|arrange)\b",text))
 
 def needs_rm_attention(message,answer):
     """Sharing is permission, not evidence of an actionable need (ENGAGEMENT-2)."""
@@ -102,7 +103,7 @@ def classify(text,previous=''):
     if any(x in s for x in ['ignore previous','system prompt','internal note','another customer','other customer','password','otp','one-time code','pin number','do not contact',"don't contact",'stop contacting','unsubscribe','no marketing']):return 'PRIVACY'
     if any(x in s for x in ['lost card','stolen','fraud','scam','unauthorized','card blocked','card delivery']):return 'CARD'
     debt=bool(DEBT_PATTERN.search(s))
-    if 'card' in s and not debt:return 'CARD'
+    if ('card' in s or re.search(r'\bcc\b',s)) and not debt:return 'CARD'
     if any(x in s for x in ['transfer','recipient','pending payment','transaction missing','payment failed','not received','refund']):return 'SERVICE'
     if any(x in s for x in ['loan','credit application','borrow money']) and (not debt or LOAN_APPLICATION.search(s)):return 'LOAN'
     if WEALTH_PATTERN.search(s) or (previous=='WEALTH' and WEALTH_FOLLOW_UP.search(s)):return 'WEALTH'
@@ -311,7 +312,7 @@ def clean_suggestions(items:list[str])->list[str]:
     kept=[]
     for item in items:
         text=' '.join(str(item).split()).strip(' -•')
-        if not 3<=len(text)<=80 or re.search(r'\d|https?://|www\.|@',text) or SUGGESTION_BLOCKLIST.search(text) or SUGGESTION_ACTION.search(text):continue
+        if not 3<=len(text)<=80 or re.search(r'\d|https?://|www\.|@',text) or SUGGESTION_BLOCKLIST.search(text) or SUGGESTION_ACTION.search(text) or re.match(r'(?i)(send a )?message\b',text):continue
         if text.casefold() not in {k.casefold() for k in kept}:kept.append(text)
     return kept[:3]
 
@@ -357,8 +358,7 @@ CHAT_SYSTEM=(
     "relationship manager in your own words. When asked whether to buy, sell or hold, say in one plain sentence that "
     "you cannot tell them which to do because that is a personal recommendation. Put the tappable wording 'Talk to my "
     "RM about my portfolio' only in suggestions, never inside the answer text. If the customer asks to involve their "
-    "relationship manager, say the request can be shared "
-    "with them through the bank's official channels and that no call time or outcome is confirmed.\n"
+    "relationship manager, tell them to use the Message button below the answer to send it with how and when they want to be contacted; never say the request has been shared or sent, and that no call time or outcome is confirmed. Never offer messaging the RM as a suggestion; the app shows that button.\n"
     "Debt, saving and investing: state the monthly interest cost of the debt (such as monthly_interest_cost) alongside its annual rate, compare with what the same money earns in savings, say how many months of spending stay in cash buffer, state the goal shortfall, and treat investing as the uncertain last step.\n"
     "Numbers: copy amounts and percentages exactly as written in financial_context values and rows, for example "
     "'IDR 1,150,000', 'IDR 261,666.67' or '27.78%'. Never calculate, round, add, subtract or estimate new amounts, and "
@@ -545,7 +545,7 @@ def respond(message,previous,kb,party,history=None):
     if route!='PRIVACY' and human_help_requested(message) and any(v in message.casefold() for v in ['service issue','service problem']):
         category='SERVICE_ISSUE';need=message.strip()
     if route!='PRIVACY' and human_help_requested(message) and provider=='local':
-        text='You can contact your relationship manager through the bank’s official channels. Relevant needs may be reviewed under the bank’s configured policy. No call time or product outcome is confirmed.\n\n'+sources[0]['content']
+        text='Use the Message button below to send your relationship manager your request and choose how and when they contact you. No call time or product outcome is confirmed.\n\n'+sources[0]['content']
     governance=(party.get('governance_context') or {})
     if governance.get('question') and 'ASK_CLARIFICATION' in governance.get('steps',[]) and (provider=='local' or '?' not in text):text+='\n\n'+governance['question']
     claims=[{'text':x['content'],'source_id':x['id'],'supported':True} for x in sources] if provider=='local' else []

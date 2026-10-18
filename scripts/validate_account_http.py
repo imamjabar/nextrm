@@ -121,6 +121,8 @@ with tempfile.TemporaryDirectory(prefix='nextrm-http-validation-') as folder:
   conversation=request(chat,'usr-dina')
   default_turn=request(chat+'/turns','usr-dina',{'base_version':conversation['version'],'request_key':key(),'message':'I want to open a time deposit for my savings.'})
   assert default_turn['signal_id'] and default_turn['sharing_status']=='SHARED'
+  form_req=request(chat+'/requests','usr-dina',{'request_key':key(),'message':'I would like to message my RM about saving options','method':'PHONE_CALL','window':'MORNING'})
+  assert form_req['status']=='AWAITING_REVIEW' and form_req['contact_method']=='PHONE_CALL'
   conversation=request(chat,'usr-dina')
   finance=request(chat+'/turns','usr-dina',{'base_version':conversation['version'],'request_key':key(),'message':'Why has my spending increased?'})
   assert '27.78%' in finance['answer'] and finance['signal_id'] is None

@@ -8,7 +8,7 @@ from ..core.security import CurrentUser,get_current_user
 from ..models.relationships import Journey,Signal,Prospect,Party,Source,Nudge,ReviewEvent
 from ..models.entities import utc_now
 from ..schemas.rm import RMStartJourney,RMJourney,RMJourneys,RMFollowupUpdate,RMDestinations,RMPulse,RMNudge,RMNudges,RMNudgeAction,RMAIDraftRequest,RMAIDraft,RMSource
-from ..services.rm import require_rm,party_for,scoped_signal,scoped_journey,journey_data,customer_journey_data,signal_data,source_data,priority_key,prospect_priority,uid,j,stamp,cas,review_event,hash_payload,record_ai_audit_event
+from ..services.rm import require_rm,party_for,scoped_signal,scoped_journey,journey_data,customer_journey_data,signal_data,source_data,priority_key,prospect_priority,uid,j,stamp,cas,review_event,hash_payload,record_ai_audit_event,contact_preferences_for_signals
 from ..services.assistant.engine import generate_ai_draft,provider_info,ProviderUnavailable,ProviderFailure,PROMPT_DRAFT_VERSION
 from ..services.menus import destination_data
 router=APIRouter(prefix='/v1/rm',tags=['engagement'])
@@ -56,7 +56,9 @@ def prospect_followup(id:str,req:RMStartJourney,db:Session=Depends(get_db),user:
 def followups(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
     require_rm(user)
     rows=db.query(Journey).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,kind='RM_FOLLOWUP').order_by(Journey.created_at.desc()).all()
-    return {'journeys':[journey_data(db,scoped_journey(db,user,x.id)) for x in rows]}
+    sig_ids=[x.signal_id for x in rows if x.signal_id]
+    prefs=contact_preferences_for_signals(db,user.tenant_id,sig_ids)
+    return {'journeys':[journey_data(db,scoped_journey(db,user,x.id),pref=prefs.get(x.signal_id)) for x in rows]}
 
 @router.get('/follow-ups/{id}',response_model=RMJourney)
 def followup(id:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
@@ -155,9 +157,12 @@ def pulse(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user))
     require_rm(user)
     signals=db.query(Signal).filter_by(tenant_id=user.tenant_id,owner_id=user.user_id).filter(Signal.workflow.notin_(['COMPLETED','DISMISSED'])).all();signals.sort(key=priority_key)
     tasks=db.query(Journey).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,kind='RM_FOLLOWUP').filter(Journey.status.notin_(['DONE','CANCELLED'])).all()
-    data=[journey_data(db,scoped_journey(db,user,x.id)) for x in tasks];now=utc_now().replace(tzinfo=timezone.utc)
+    top_signals=signals[:12]
+    sig_ids=[x.id for x in top_signals]+[x.signal_id for x in tasks if x.signal_id]
+    all_prefs=contact_preferences_for_signals(db,user.tenant_id,sig_ids)
+    data=[journey_data(db,scoped_journey(db,user,x.id),pref=all_prefs.get(x.signal_id)) for x in tasks];now=utc_now().replace(tzinfo=timezone.utc)
     overdue=sum(bool(x['due_at'] and datetime.fromisoformat(x['due_at'])<now) for x in data)
-    return {'open_signals':len(signals),'needs_review':sum(x.review=='PROPOSED' for x in signals),'urgent_service':sum(x.category=='SERVICE_ISSUE' and x.urgency in {'URGENT','TIME_SENSITIVE'} for x in signals),'open_followups':len(tasks),'overdue_followups':overdue,'signals':[signal_data(db,scoped_signal(db,user,x.id)) for x in signals[:12]],'followups':data,'method':'Counts from assigned current signals and RM follow-up records. Due dates are RM-entered. No propensity, credit score, product completion or transaction reconciliation is inferred.'}
+    return {'open_signals':len(signals),'needs_review':sum(x.review=='PROPOSED' for x in signals),'urgent_service':sum(x.category=='SERVICE_ISSUE' and x.urgency in {'URGENT','TIME_SENSITIVE'} for x in signals),'open_followups':len(tasks),'overdue_followups':overdue,'signals':[signal_data(db,scoped_signal(db,user,x.id),pref=all_prefs.get(x.id)) for x in top_signals],'followups':data,'method':'Counts from assigned current signals and RM follow-up records. Due dates are RM-entered. No propensity, credit score, product completion or transaction reconciliation is inferred.'}
 
 @router.get('/destinations',response_model=RMDestinations)
 def destinations(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):

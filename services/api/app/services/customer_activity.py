@@ -6,7 +6,7 @@ from sqlalchemy import or_
 from fastapi import HTTPException
 from ..models.entities import utc_now,UserAssignmentModel
 from ..models.relationships import AppActivity,Source,Signal,Party
-from .rm import uid,j,hash_payload,stamp,signal_data
+from .rm import uid,j,hash_payload,stamp,signal_data,contact_preferences_for_signals
 
 PRODUCTS={'DEPOSIT':'Time deposit','LOAN':'Loan','SAVINGS':'Savings','NONE':'RM contact'}
 
@@ -108,7 +108,8 @@ def behavior(db,user,party):
     for x in rows:groups.setdefault((x.kind,x.product,x.mode),[]).append(x)
     events=[{'kind':kind,'product':product,'count':len(items),'window':'Rolling '+str(days)+' days','latest_at':stamp(items[0].occurred_at),'mode':mode,'interpretation':'Service friction; outcome and cause unconfirmed.' if kind=='APPLICATION_FAILED' else 'Observed exploration; not purchase intent or signing authority.' if kind=='PRODUCT_VIEW' else 'Contact details viewed; no call or email sent.'} for (kind,product,mode),items in groups.items()]
     signals=db.query(Signal).filter_by(tenant_id=user.tenant_id,party_id=party.id,owner_id=user.user_id).filter(Signal.semantic_key.startswith('APP-')).all()
-    return {'events':events,'signals':[signal_data(db,x) for x in signals],'method':'APP-SIGNAL-1: exact permitted event counts within the released time window. Repeated views produce research; opening errors produce service review. No inferred anxiety, propensity or purchase confirmation.'}
+    prefs=contact_preferences_for_signals(db,user.tenant_id,[x.id for x in signals])
+    return {'events':events,'signals':[signal_data(db,x,pref=prefs.get(x.id)) for x in signals],'method':'APP-SIGNAL-1: exact permitted event counts within the released time window. Repeated views produce research; opening errors produce service review. No inferred anxiety, propensity or purchase confirmation.'}
 
 
 def seed_customer_activity(db):

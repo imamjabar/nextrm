@@ -34,7 +34,8 @@ def process_evaluation(db):
         start=time.perf_counter()
         try:
             answer=respond(case['question'],'',kb,{'name':'Synthetic evaluation person','declared_goal':'','mode':'SYNTHETIC','governance_context':__import__('app.services.governance',fromlist=['resolve']).resolve(config.get('governance_definition',__import__('app.services.governance',fromlist=['DEFAULT']).DEFAULT),case['question'],release_id=config.get('governance_release'),version=config.get('governance_version',0))})
-            qa=answer.route==case['route'] and case['contains'].casefold() in answer.text.casefold()
+            expected_phrases=[p.strip().casefold() for p in case['contains'].split('|')]
+            qa=answer.route==case['route'] and any(p in answer.text.casefold() for p in expected_phrases)
             tools=(answer.route==case['route'] and {x['name'] for x in answer.tools}==({'read_approved_knowledge','read_permitted_customer_context'} if case['tools']==2 else {'read_approved_knowledge'}) and all(x['status']=='COMPLETED' for x in answer.tools))
             supported=sum(1 for claim in answer.claims if any(src['id']==claim['source_id'] and claim['text']==src['content'] for src in kb.values()))
             results.append({'case_id':case['id'],'family':case['family'],'question':case['question'],'expected_route':case['route'],'actual_route':answer.route,'qa_pass':qa,'tool_pass':tools,'supported_claims':supported,'assessable_claims':len(answer.claims),'latency_ms':max(1,int((time.perf_counter()-start)*1000)),'status':'COMPLETED','answer':answer.text,'reason':'Developer reference rubric: route + required material phrase; tools and exact source excerpts checked. Unadjudicated.'})

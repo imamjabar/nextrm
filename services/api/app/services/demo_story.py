@@ -1,7 +1,7 @@
 import hashlib
 from datetime import timedelta,timezone
 from ..models.entities import utc_now
-from ..models.relationships import Party,Conversation,ChatSession,SessionTurn,Source,Turn,Signal,Journey,Prospect
+from ..models.relationships import Party,Conversation,ChatSession,SessionTurn,Source,Turn,Signal,Journey,Prospect,ContactPreference
 from .rm import hash_payload,j
 from .rm_seed import sid
 from .assistant.engine import LOCAL_MODEL,PROMPT_VERSION,ROUTE_KB
@@ -47,16 +47,17 @@ def seed_demo_story(db,tenant='demo-bank'):
         if not session:
             session=ChatSession(id=chat_id,tenant_id=tenant,party_id=party.id,actor_id=actor_id,title=title,version=1,request_key='seed-chat-'+key,archived=False,created_at=t_time,updated_at=t_time)
             db.add(session);db.flush()
+        is_explicit=key in {'DINA-1','ADITYA-1'}
         source_id=sid(tenant,'MSG-'+key);source=db.get(Source,source_id)
         if not source:
-            source=Source(id=source_id,tenant_id=tenant,party_id=party.id,kind='CUSTOMER_MESSAGE',title='Customer conversation · '+party.name,content=message,content_hash=hashlib.sha256(message.encode()).hexdigest(),mode='SIMULATED',version=1,event_at=t_time,ingested_at=t_time)
+            source=Source(id=source_id,tenant_id=tenant,party_id=party.id,kind='CUSTOMER_RM_REQUEST' if is_explicit else 'CUSTOMER_MESSAGE',title=('Message to RM · ' if is_explicit else 'Customer conversation · ')+party.name,content=message,content_hash=hashlib.sha256(message.encode()).hexdigest(),mode='SIMULATED',version=1,event_at=t_time,ingested_at=t_time)
             db.add(source);db.flush()
         turn_id=sid(tenant,'TURN-'+key);turn=db.get(Turn,turn_id)
         sig_id=sid(tenant,'SIG-'+key) if need_spec else None
         if not turn:
             kb_key=ROUTE_KB.get(route,'');kb_id=sid(tenant,'KB-'+kb_key) if kb_key else ''
             kb_src=db.get(Source,kb_id) if kb_id else None
-            out={'source_ids':[kb_id] if kb_src else [],'signal_id':sig_id or None,'message_source_id':source.id,'model_calls':0,'schema_version':'rm-turn-v2','prompt_version':PROMPT_VERSION,'session_id':session.id,'sharing_status':'SHARED' if sig_id else 'HELP_ONLY','capture_method':'INSTITUTION_POLICY','suggestions':[]}
+            out={'source_ids':[kb_id] if kb_src else [],'signal_id':sig_id or None,'message_source_id':source.id,'model_calls':0,'schema_version':'rm-turn-v2','prompt_version':PROMPT_VERSION,'session_id':session.id,'sharing_status':'SHARED' if sig_id else 'HELP_ONLY','capture_method':'INSTITUTION_POLICY','suggestions':[],'rm_suggested':bool(need_spec)}
             turn=Turn(id=turn_id,tenant_id=tenant,conversation_id=conv.id,party_id=party.id,actor_id=actor_id,request_key='seed-turn-'+key,payload_hash=hash_payload({'seed':persona,'n':n}),message=message,answer=answer,status='COMPLETED',route=route,mode='SIMULATED',model=LOCAL_MODEL,share=True,output_json=j(out),tools_json='[]',latency_ms=0,created_at=t_time)
             db.add(turn);db.flush()
         if not db.query(SessionTurn).filter_by(id=turn.id,tenant_id=tenant,session_id=session.id).first():
@@ -65,8 +66,12 @@ def seed_demo_story(db,tenant='demo-bank'):
             category,urgency,sig_title,need_text=need_spec
             sig=db.get(Signal,sig_id)
             if not sig:
-                sig=Signal(id=sig_id,tenant_id=tenant,party_id=party.id,source_id=source.id,turn_id=turn.id,owner_id=party.owner_id,semantic_key='SEED-'+key,category=category,urgency=urgency,evidence='OBSERVED',workflow='NEW',review='PROPOSED',title=sig_title,need=need_text,rationale='Customer message supports this specific reviewable task; no purchase probability or financial authority inferred.',uncertainty='Needs and permitted next action require RM review; no product activation or transaction result is inferred.',confirmed=False,version=1,created_at=t_time,updated_at=t_time)
+                sig=Signal(id=sig_id,tenant_id=tenant,party_id=party.id,source_id=source.id,turn_id=turn.id,owner_id=party.owner_id,semantic_key='SEED-'+key,category=category,urgency=urgency,evidence='CUSTOMER_CONFIRMED' if is_explicit else 'OBSERVED',workflow='NEW',review='PROPOSED',title=sig_title,need=need_text,rationale='Customer message supports this specific reviewable task; no purchase probability or financial authority inferred.',uncertainty='Needs and permitted next action require RM review; no product activation or transaction result is inferred.',confirmed=is_explicit,version=1,created_at=t_time,updated_at=t_time)
                 db.add(sig);db.flush()
+            if is_explicit:
+                cpref_id=sid(tenant,'CPREF-'+key)
+                if not db.get(ContactPreference,cpref_id):
+                    db.add(ContactPreference(id=cpref_id,tenant_id=tenant,party_id=party.id,signal_id=sig_id,actor_id=actor_id,method='PHONE_CALL',window='MORNING' if persona=='DINA' else 'AFTERNOON',request_key='seed-cpref-'+key,payload_hash=hash_payload({'seed':key}),created_at=t_time));db.flush()
     db.commit()
     nabila_sig=db.get(Signal,sid(tenant,'SIG-NABILA-1'))
     if nabila_sig:

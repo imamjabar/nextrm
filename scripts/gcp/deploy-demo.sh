@@ -110,6 +110,8 @@ deploy_api() {
   if [[ -n "${GEMINI_THINKING_BUDGET:-}" ]]; then env="${env},GEMINI_THINKING_BUDGET=${GEMINI_THINKING_BUDGET}"; fi
   if [[ -n "$MAPS_SERVER_KEY_SECRET" ]]; then
     env="${env},NEXTRM_POI_PROVIDER=google"; secrets="${secrets},GOOGLE_MAPS_SERVER_KEY=${MAPS_SERVER_KEY_SECRET}:latest"
+  elif [[ -n "$GOOGLE_MAPS_BROWSER_KEY" ]]; then
+    env="${env},NEXTRM_POI_PROVIDER=google,GOOGLE_MAPS_SERVER_KEY=${GOOGLE_MAPS_BROWSER_KEY},GOOGLE_MAPS_BROWSER_KEY=${GOOGLE_MAPS_BROWSER_KEY}"
   else
     env="${env},NEXTRM_POI_PROVIDER=synthetic"
   fi

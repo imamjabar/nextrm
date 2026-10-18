@@ -10,7 +10,7 @@ An AI relationship copilot for banks. Customers get straight answers from their 
 
 Built for the Google Cloud AI Builder Cup 2026, theme BFSI: Intelligent Risk, Fraud & Financial Experiences.
 
-Live demo: <https://nextrm-web-551212450229.asia-southeast1.run.app/demo>. No sign-up: pick Dina (customer), Maya (RM) or Arif (AI admin), and switch between the customers Dina, Aditya and Nabila from the header. All data is synthetic and persists in Cloud SQL; `scripts/gcp/reset-demo-data.sh --yes` restores the starting state. The API scales to zero when idle, so the first request after a quiet period waits a few seconds for a container to start.
+No sign-up: pick Dina (customer), Maya (RM) or Arif (AI admin), and switch between the customers Dina, Aditya and Nabila from the header. All data is synthetic and persists in Cloud SQL; `scripts/gcp/reset-demo-data.sh --yes` restores the starting state. The API scales to zero when idle, so the first request after a quiet period waits a few seconds for a container to start.
 
 ---
 
@@ -24,7 +24,7 @@ The bank sits between them with its own limits. It cannot let an AI invent a bal
 
 ## What NextRM does
 
-NextRM links the two sides of that relationship. The customer's assistant answers from approved bank knowledge and the customer's own figures. When a customer asks for their RM, or the app sees a problem such as a failed transfer, NextRM records a need with the customer's exact words and its source. Maya reviews it, gets a sourced brief and a draft, and makes the contact herself through the bank's own channels. NextRM never sends a message on its own.
+NextRM links the two sides of that relationship. The customer's assistant answers from approved bank knowledge and the customer's own figures. Maya hears from the customer in two ways. A request is a short message the customer sends through a "Message Maya" form, choosing how and when to be contacted; the assistant suggests that form when a question needs a person, and Maya is expected to follow up. A signal is something NextRM notices without being asked: a need the customer mentioned while chatting with the assistant (under the bank's capture policy; saying "keep this private" opts a message out), app activity such as a failed transfer, or a change in their account data. Maya sees each signal with its source and decides whether to reach out. Either way she gets a sourced brief and a draft, and then calls, emails or meets the customer herself through the bank's own channels. NextRM never sends a message on its own, and there is no RM chat inside the app.
 
 Prospects take a parallel path. Bank lead lists and businesses near Maya's area are checked against existing customers first, so she never cold-calls someone who already banks with her.
 
@@ -69,13 +69,15 @@ The assistant handles the ten money questions customers ask most:
 
 Suggestions come from twelve fixed families and are ordered care first: service problems, then guidance, education, recognition, and commercial offers last. The app shows at most three at a time. The customer can explore one, ask for their RM, dismiss it, snooze the topic, or opt out. Saying something like "stop selling" switches off commercial suggestions straight away, and service help keeps working.
 
-When a customer wants personal investment advice, the assistant hands over to their RM rather than giving it. The contact sheet lists only the channels the bank has configured.
+Asking for the RM works like a light ticket. The customer taps Message Maya (on Home, or under an answer where the assistant suggests it, with their question already filled in), writes what they need, and picks how Maya should reach them (phone call, video call, branch meeting or email) and when (morning, afternoon or any time). Home lists each request with three steps: sent, Maya contacts you, done. Once Maya plans the follow-up, the customer sees her date ("Maya plans to call you by 21 Oct"). Signals NextRM noticed on its own are not requests, so they never appear in this list. The conversation itself happens on the phone, by email or at the branch.
+
+When a customer wants personal investment advice, the assistant does not give it and suggests messaging their RM instead. The contact sheet lists only the channels the bank has configured.
 
 ## For relationship managers
 
-Maya's workspace starts on Today (`/workspace`). Needs are grouped care first under Customer has a problem, Ready to talk, Asked for you, and Spotted for you. Each one shows what happened, what it means and the next step, with the customer's own words. A blocked card always sits above a sales opportunity.
+Maya's workspace starts on Today (`/workspace`). Needs are grouped care first under Customer has a problem, Ready to talk, Asked for you (messages the customer sent her, which she should answer), and Spotted for you (signals from chat, app activity or account data that the customer has not asked about). Each one shows what happened, what it means and the next step, with the customer's own words. A blocked card always sits above a sales opportunity.
 
-Opening a customer (`/relationships/[id]`) shows their overview, needs, behaviour timeline and notes. The pre-call brief from Gemini lists talking points, questions to ask and cautions, and every point cites the record it came from.
+Opening a customer (`/relationships/[id]`) starts on their open needs, grouped care first. Each need is one row with its step (to check, plan follow-up, follow-up in progress); opening it shows the customer's words, how they want to be reached, and the one action that moves it forward. Done and dismissed needs fold away. The Overview tab holds the snapshot and the pre-call brief from Gemini, which lists talking points, questions to ask and cautions, each citing the record it came from.
 
 Follow-ups (`/follow-ups`) move through planned, in progress, done and cancelled, with snooze and a recorded outcome. For each one Maya can ask for an email or a phone script. A consent check runs before the model is called, and the result is a draft for her to use, never a sent message. Marking a follow-up done records her task; opening a deposit or loan still happens in the bank's own systems.
 
@@ -203,7 +205,7 @@ Open <http://localhost:3000/demo>. For live Gemini, run `gcloud auth application
 ## Verify
 
 ```bash
-./.venv/bin/pytest -q                              # 315 API tests on PostgreSQL
+./.venv/bin/pytest -q                              # 332 API tests on PostgreSQL
 ./.venv/bin/python scripts/validate_account_http.py  # 151 end-to-end HTTP checks
 ./.venv/bin/python scripts/top10_questions.py --live --show  # top 10 customer questions, graded
 ```

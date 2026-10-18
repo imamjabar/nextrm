@@ -72,7 +72,7 @@ def brief(pid:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_curren
     for s in signals:
         src=scoped_source(db,user.tenant_id,pid,s.source_id)
         if not src:raise HTTPException(409,'Signal source binding needs repair.')
-        kind='CUSTOMER_STATEMENT' if src.kind in {'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE'} else 'OBSERVED_EVENT'
+        kind='CUSTOMER_STATEMENT' if src.kind in {'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE','CUSTOMER_RM_REQUEST'} else 'OBSERVED_EVENT'
         facts.append({'kind':kind,'text':src.content,'source':source_data(src)})
         if s.need!=src.content:facts.append({'kind':'RM_INTERPRETATION','text':s.need,'source':source_data(src)})
         timeline.append({'kind':kind,'text':src.content,'source':source_data(src)})

@@ -70,7 +70,9 @@ The customer view is presented inside a device frame (`390px` wide) on wider scr
 - **Composer:** Pill-shaped input that grows to about five lines (16px text so iOS does not zoom), keyboard submission (`Enter` to send, `Shift+Enter` for line breaks) and a 44px send button.
 - **Mandatory Footer:** Permanently pinned disclaimer at the base of the conversation:
   > *"AI can make mistakes. Always check important info."*
-- **RM Contact Sheet Modal:** Triggered when human assistance is requested. Displays bank-configured official phone numbers, email addresses, and relationship team availability. Contains no unmonitored peer-to-peer chat widget.
+- **RM Contact Sheet Modal:** Opened from the header person icon. Displays bank-configured official phone numbers, email addresses, and relationship team availability. Contains no unmonitored peer-to-peer chat widget.
+- **Message Your RM Sheet:** Native dialog opened from Home ("Message Maya" on the request card) or from the button under an answer when the assistant suggests a person (prefilled with the customer's words). Fields: the message, how to be contacted (Phone call, Video call, Meet at a branch, Email) and when (Morning, Afternoon, Any time). Sending shows a confirmation in the sheet ("Sent to Maya. Maya will call you in the morning."). Helper text states the RM replies outside the app.
+- **Request Card (Home):** Always visible. Header "Your RM, Maya" with the Message button; empty state invites a first message. Each request shows the customer's words, a three-step track (Sent, Maya contacts you, Done), the contact preference with Change, and one status sentence in the customer's terms ("Maya plans to call you by 21 Oct").
 
 ### 2. Relationship Manager Workspace (`/workspace`, `/retention`, `/relationships/[id]`)
 Designed for high information density and fast decision-making:
@@ -82,12 +84,12 @@ Designed for high information density and fast decision-making:
   - Care-First Queue: Priority rows ordered by service urgency. Row columns: Customer Name, Signal Category (`SERVICE_ISSUE`, `OPPORTUNITY`, `RESEARCH`, `GUIDANCE`), Urgency Badge, Evidenced Source, Time Ingested, and Next Action button.
   - Signal Review Drawer: Expanding side sheet showing exact source excerpts, proposed customer need, uncertainty classification, and buttons to Accept, Correct, or Dismiss with required audit reasons.
 - **Relationship Detail (`/relationships/[id]`):**
-  - Four structured tabs:
-    1. **Overview:** Core party details, relationship duration, contact consent status (`ALLOWED` vs `RESTRICTED`), and assigned coverage mode.
-    2. **Needs & Signals:** History of customer statements, detected friction, and reviewable opportunities.
-    3. **Behavior Timeline:** Chronological stream of app telemetry events (e.g., repeated deposit views, card error events).
-    4. **Notes & History:** Staff-recorded follow-up notes, logged customer contact events, and prior task outcomes.
-  - **AI Relationship Brief Panel:** Prominently positioned pre-call briefing card. Synthesizes key facts, talking points with clickable source badges, suggested discovery questions, and institutional cautions.
+  - Header: name, one line of kind, segment, locality and relationship, then one line of facts (identity, contact permission, RM, products). No card grid.
+  - Tabs, opening on **Needs** when any need is open, otherwise on **Overview**:
+    1. **Needs (count):** open needs grouped care first (Customer has a problem, Ready to talk, Asked for you, Spotted for you). Each need is one row: title, a one-line excerpt, urgency, a step chip (`To check`, `Plan follow-up`, `Follow-up in progress`) and age. One row is open at a time (the linked need, else the first). An open row shows what happened with its source, what it means only when that differs from the customer's words, the customer's contact preference, the next step and only the actions for that step. Follow-ups without a need are listed under Other follow-ups. Done and dismissed needs fold into one disclosure.
+    2. **Overview:** financial snapshot and the AI relationship brief (key facts, talking points with source badges, discovery questions, cautions).
+    3. **Behavior:** chronological app activity (e.g. repeated deposit views, card error events).
+    4. **Notes & history:** sources, business contacts, internal note and review history.
 
 ### 3. RM Acquisition and Territory Desk (`/acquisition`)
 One desk for every acquisition opportunity. Assigned prospects (bank source records) and businesses found around the chosen area share one list, one map and one detail panel.
@@ -99,13 +101,11 @@ One desk for every acquisition opportunity. Assigned prospects (bank source reco
 
 ### 4. RM Follow-up Management (`/follow-ups`, `/follow-ups/[id]`)
 - **Task List View:** Filterable queue showing open, snoozed, overdue, and completed follow-up items.
-- **Task Detail Card:**
-  - Contextual link to original signal or prospect candidate.
-  - State controls: Transition buttons for `START`, `NOTE`, `COMPLETE`, and `CANCEL`.
-  - Snooze Selector: Date/time picker to pause task visibility until a specific future date.
-  - **AI Outreach Draft Generator:** Modal or inline drawer generating professional English outreach drafts (email or phone script). Drafts cite verified sources, adhere to customer consent gates, and include an explicit "Draft Only — Not Sent" banner.
-  - Human Outcome Logging: Required structured outcome selector (e.g., `MEETING_SCHEDULED`, `NEEDS_CONFIRMED`, `NO_INTEREST`, `CALL_UNANSWERED`) with mandatory free-text notes.
-
+- **Two-Stage Follow-up Detail Card (`/follow-ups/[id]`):**
+  - **Live Synchronization Strip:** Shows the customer's preferred contact channel, due date, and a live preview chip of what the customer currently sees in their mobile banking app (e.g. `Maya plans to contact you by 21 Oct`).
+  - **Stage 1 (Pre-call prep / Before the call):** Customer's exact words in an emphasized quote box, paired with a unified **Outreach Script** (tailored to phone script or email) with a 1-click `Copy script` action and optional Gemini refinement.
+  - **Stage 2 (Outcome logging / After the call):** After speaking with the customer via official bank channels, the RM selects a structured human outcome (e.g., `DISCUSSION_RECORDED`, `MEETING_SCHEDULED`, `NO_CURRENT_NEED`), logs mandatory notes, and clicks `Record follow-up done`.
+  - **Closing parity:** Clicking `Record follow-up done` completes the RM task and transitions the customer's in-app 3-step tracker to `Done`.
 ### 5. AI Governance and Administration (`/settings/governance`, `/settings/ai-quality`, `/settings/assignments`)
 - **Rules & Governance (`/settings/governance`):**
   - Bounded intent flow editor displaying intent name, trigger keywords, example queries, linked knowledge base categories, and permitted execution steps.

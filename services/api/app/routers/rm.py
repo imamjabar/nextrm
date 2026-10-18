@@ -1,4 +1,4 @@
-import json,time,os,re
+import json,time,os,re,hashlib
 from datetime import timedelta,datetime
 from fastapi import APIRouter,Depends,HTTPException,Query
 from sqlalchemy import update,select,func
@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.security import CurrentUser,get_current_user
 from ..models.entities import UserAssignmentModel,utc_now
-from ..models.relationships import Party,Source,Prospect,Conversation,Turn,Signal,ReviewEvent,Journey,EvaluationRun
+from ..models.relationships import Party,Source,Prospect,Conversation,Turn,Signal,ReviewEvent,Journey,EvaluationRun,ContactPreference
 from ..schemas.rm import *
 from ..services.rm import *
 from ..services.assistant.engine import LOCAL_MODEL,PROMPT_VERSION,respond,provider_info,classify,ProviderUnavailable,ProviderFailure,redact_message,needs_rm_attention
@@ -56,7 +56,8 @@ def home(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
     p,ready=provider_info()
     try:quality_grant(db,user);access=True
     except HTTPException:access=False
-    return {'customers':len(parties),'prospects':len(active_prospects),'open_signals':len(signals),'open_followups':db.query(Journey).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,kind='RM_FOLLOWUP').filter(Journey.status.notin_(['DONE','CANCELLED'])).count(),'open_journeys':db.query(Journey).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,kind='RM_FOLLOWUP').filter(Journey.status.notin_(['COMPLETED','CANCELLED'])).count(),'signals':[signal_data(db,x) for x in signals[:8]],'prospect_preview':[p for p in prospects_data(db,prospects) if p['priority_tier']!='EXISTING_RELATIONSHIP'][:4],'provider':p,'provider_ready':ready,'data_mode':'SYNTHETIC','quality_access':access}
+    sig_prefs=contact_preferences_for_signals(db,user.tenant_id,[x.id for x in signals[:8]])
+    return {'customers':len(parties),'prospects':len(active_prospects),'open_signals':len(signals),'open_followups':db.query(Journey).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,kind='RM_FOLLOWUP').filter(Journey.status.notin_(['DONE','CANCELLED'])).count(),'open_journeys':db.query(Journey).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,kind='RM_FOLLOWUP').filter(Journey.status.notin_(['COMPLETED','CANCELLED'])).count(),'signals':[signal_data(db,x,pref=sig_prefs.get(x.id)) for x in signals[:8]],'prospect_preview':[p for p in prospects_data(db,prospects) if p['priority_tier']!='EXISTING_RELATIONSHIP'][:4],'provider':p,'provider_ready':ready,'data_mode':'SYNTHETIC','quality_access':access}
 
 @router.get('/parties',response_model=RMParties)
 def parties(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
@@ -70,7 +71,8 @@ def parties(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user
 @router.get('/signals',response_model=RMSignals)
 def signals(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
     require_rm(user);rows=db.query(Signal).filter_by(tenant_id=user.tenant_id,owner_id=user.user_id).all();rows.sort(key=priority_key)
-    return {'signals':[signal_data(db,x) for x in rows],'parties':[party_data(db,x) for x in db.query(Party).filter(Party.tenant_id==user.tenant_id,Party.relationship=='EXISTING_CUSTOMER',Party.id.in_(__import__('app.services.coverage',fromlist=['visible_ids']).visible_ids(db,user))).limit(100).all()]}
+    sig_prefs=contact_preferences_for_signals(db,user.tenant_id,[x.id for x in rows])
+    return {'signals':[signal_data(db,x,pref=sig_prefs.get(x.id)) for x in rows],'parties':[party_data(db,x) for x in db.query(Party).filter(Party.tenant_id==user.tenant_id,Party.relationship=='EXISTING_CUSTOMER',Party.id.in_(__import__('app.services.coverage',fromlist=['visible_ids']).visible_ids(db,user))).limit(100).all()]}
 
 @router.get('/parties/{id}',response_model=RMPartyDetail)
 def party_detail(id:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
@@ -82,7 +84,9 @@ def party_detail(id:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_
     sourceids={x.source_id for x in signals}|{x.source_id for x in journeys}|{x.source_id for x in linked_prospects}
     sources=db.query(Source).filter(Source.tenant_id==user.tenant_id,Source.id.in_(sourceids)).all() if staff else []
     history=db.query(ReviewEvent).filter(ReviewEvent.tenant_id==user.tenant_id,ReviewEvent.resource_id.in_([id]+[x.id for x in signals]+[x.id for x in journeys]+[x.id for x in linked_prospects])).order_by(ReviewEvent.created_at.desc()).all() if staff else []
-    return {'party':party_data(db,p),'signals':[signal_data(db,x) for x in signals],'journeys':[(journey_data(db,x) if staff else customer_journey_data(db,x)) for x in journeys],'sources':[source_data(x) for x in sources],'review_history':[{'id':x.id,'action':x.action,'reason':x.reason,'actor_id':x.actor_id,'before':json.loads(x.before_json),'after':json.loads(x.after_json),'at':stamp(x.created_at)} for x in history],'internal_note':json.loads(p.context_json).get('notes') if staff else None}
+    sig_ids=[x.id for x in signals]+[x.signal_id for x in journeys if x.signal_id]
+    all_prefs=contact_preferences_for_signals(db,user.tenant_id,sig_ids)
+    return {'party':party_data(db,p),'signals':[signal_data(db,x,pref=all_prefs.get(x.id)) for x in signals],'journeys':[(journey_data(db,x,pref=all_prefs.get(x.signal_id)) if staff else customer_journey_data(db,x,pref=all_prefs.get(x.signal_id))) for x in journeys],'sources':[source_data(x) for x in sources],'review_history':[{'id':x.id,'action':x.action,'reason':x.reason,'actor_id':x.actor_id,'before':json.loads(x.before_json),'after':json.loads(x.after_json),'at':stamp(x.created_at)} for x in history],'internal_note':json.loads(p.context_json).get('notes') if staff else None}
 
 @router.get('/sources/{id}',response_model=RMSource)
 def source_read(id:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
@@ -110,7 +114,7 @@ def review_signal(id:str,req:RMReview,db:Session=Depends(get_db),user:CurrentUse
     if req.decision in {'EDITED','REJECTED'} and len(req.reason)<3:raise HTTPException(422,'A correction or dismissal requires a reason.')
     if req.decision=='EDITED' and not req.need:raise HTTPException(422,'Supply the corrected need.')
     source=db.get(Source,s.source_id)
-    if req.confirmed and (source.kind not in {'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE'} or (req.need is not None and req.need!=s.need)):
+    if req.confirmed and (source.kind not in {'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE','CUSTOMER_RM_REQUEST'} or (req.need is not None and req.need!=s.need)):
         raise HTTPException(422,'Staff review or edited notes cannot substitute for a sourced customer confirmation.')
     before=signal_data(db,s);cas(db,Signal,s,req.base_version)
     s.review=req.decision;s.workflow='DISMISSED' if req.decision=='REJECTED' else 'REVIEWED'
@@ -249,6 +253,7 @@ def chat_turn(party_id:str,req:RMChatRequest,db:Session=Depends(get_db),user:Cur
         p.contact='RESTRICTED';p.version+=1;review_event(db,user,p.id,'CUSTOMER_REFUSAL','Customer explicitly declined commercial follow-up.',{}, {'contact':'RESTRICTED','turn_id':t.id})
     source=Source(id=uid('MSG'),tenant_id=user.tenant_id,party_id=p.id,kind=('CUSTOMER_MESSAGE' if capture else 'PRIVATE_CUSTOMER_MESSAGE') if user.role=='CUSTOMER' else 'SIMULATED_CUSTOMER_MESSAGE',title='Customer conversation · '+p.name,content=message,content_hash=__import__('hashlib').sha256(message.encode()).hexdigest(),mode='SIMULATED')
     db.add(source);db.flush();signalid=None
+    if answer.category=='SERVICE_ISSUE' and not any(v in message.casefold() for v in ['service issue','service problem']) and not __import__('app.services.assistant.engine',fromlist=['service_issue_reported']).service_issue_reported(message):answer.category='GUIDANCE'
     actionable=needs_rm_attention(message,answer)
     capture=chat_capture(user,req.share_with_rm,message)
     allowed_signal=capture and 'PROPOSE_SIGNAL' in governance_decision['steps'] and actionable and answer.category and (p.contact=='ALLOWED' or answer.category=='SERVICE_ISSUE') and not refused
@@ -257,12 +262,14 @@ def chat_turn(party_id:str,req:RMChatRequest,db:Session=Depends(get_db),user:Cur
         sig=db.query(Signal).filter_by(tenant_id=user.tenant_id,party_id=p.id,semantic_key=key).first()
         if sig and sig.workflow in {'COMPLETED','DISMISSED'}:key+='-'+t.id[-8:];sig=None
         if not sig:
-            sig=Signal(id=uid('SIG'),tenant_id=user.tenant_id,party_id=p.id,source_id=source.id,turn_id=t.id,owner_id=__import__('app.services.coverage',fromlist=['routing_owner']).routing_owner(db,p,escalate=answer.category=='SERVICE_ISSUE' or __import__('app.services.assistant.engine',fromlist=['human_help_requested']).human_help_requested(message)),semantic_key=key,category=answer.category,urgency=answer.urgency,evidence='CUSTOMER_CONFIRMED' if answer.confirmed else 'OBSERVED',title={'LOAN':'Loan menu help needed' if answer.category=='SERVICE_ISSUE' else 'Loan needs discussion','SERVICE':'Payment status needs help','CARD':'Card service needs attention','WEALTH':'Customer goal needs guidance','SAVINGS':'Savings conversation','DEPOSIT':'Deposit / liquidity conversation','MERCHANT':'Business collections discussion'}.get(answer.route,'Customer question'),need=answer.need or message,rationale='Customer message supports this specific reviewable task; no purchase probability or financial authority inferred.',uncertainty='Needs and permitted next action require RM review; no product activation or transaction result is inferred.',confirmed=answer.confirmed)
+            sig=Signal(id=uid('SIG'),tenant_id=user.tenant_id,party_id=p.id,source_id=source.id,turn_id=t.id,owner_id=__import__('app.services.coverage',fromlist=['routing_owner']).routing_owner(db,p,escalate=answer.category=='SERVICE_ISSUE' or __import__('app.services.assistant.engine',fromlist=['human_help_requested']).human_help_requested(message)),semantic_key=key,category=answer.category,urgency=answer.urgency,evidence='CUSTOMER_CONFIRMED' if answer.confirmed else 'OBSERVED',title={'LOAN':'Loan menu help needed' if answer.category=='SERVICE_ISSUE' else 'Loan needs discussion','SERVICE':'Payment status needs help','CARD':'Card service needs attention' if answer.category=='SERVICE_ISSUE' else 'Card conversation','WEALTH':'Customer goal needs guidance','SAVINGS':'Savings conversation','DEPOSIT':'Deposit / liquidity conversation','MERCHANT':'Business collections discussion'}.get(answer.route,'Customer question'),need=answer.need or message,rationale='Customer message supports this specific reviewable task; no purchase probability or financial authority inferred.',uncertainty='Needs and permitted next action require RM review; no product activation or transaction result is inferred.',confirmed=answer.confirmed)
             db.add(sig)
         elif sig.review=='PROPOSED' and sig.workflow!='IN_PROGRESS':sig.source_id=source.id;sig.turn_id=t.id;sig.version+=1;sig.updated_at=utc_now()
         signalid=sig.id
     sharing_status='SHARED' if signalid else 'PRIVATE' if not capture else 'CONTACT_PREFERENCE' if refused else 'HELP_ONLY' if not actionable or not answer.category else 'CONTACT_RESTRICTED'
-    out_payload={'source_ids':[x['id'] for x in answer.sources],'claims':answer.claims,'signal_id':signalid,'message_source_id':source.id,'model_calls':0 if provider=='local' else 1,'schema_version':'rm-turn-v2','prompt_version':PROMPT_VERSION,'context_source_id':context_source.id if context_source else None,'context_source_version':context_source.version if context_source else None,'context_source_hash':context_source.content_hash if context_source else None,'financial_source_refs':[{'id':x['source']['id'],'version':x['source']['version'],'hash':x['source']['hash']} for x in ctx.get('financial_context',[]) if x.get('source') and x['status']!='UNAVAILABLE'],'governance':governance_decision,'session_id':req.session_id,'signal_policy_version':'ENGAGEMENT-4','capture_policy_version':capture_policy(user)['version'],'capture_method':'INSTITUTION_POLICY' if req.share_with_rm is None else 'EXPLICIT_LEGACY_CHOICE','sharing_status':sharing_status}
+    from ..services.assistant.engine import human_help_requested,service_issue_reported
+    rm_suggested=bool(answer.route!='PRIVACY' and not refused and ('PROPOSE_SIGNAL' in governance_decision.get('steps',[])) and (human_help_requested(message) or service_issue_reported(message)))
+    out_payload={'source_ids':[x['id'] for x in answer.sources],'claims':answer.claims,'signal_id':signalid,'message_source_id':source.id,'model_calls':0 if provider=='local' else 1,'schema_version':'rm-turn-v2','prompt_version':PROMPT_VERSION,'context_source_id':context_source.id if context_source else None,'context_source_version':context_source.version if context_source else None,'context_source_hash':context_source.content_hash if context_source else None,'financial_source_refs':[{'id':x['source']['id'],'version':x['source']['version'],'hash':x['source']['hash']} for x in ctx.get('financial_context',[]) if x.get('source') and x['status']!='UNAVAILABLE'],'governance':governance_decision,'session_id':req.session_id,'signal_policy_version':'ENGAGEMENT-4','capture_policy_version':capture_policy(user)['version'],'capture_method':'INSTITUTION_POLICY' if req.share_with_rm is None else 'EXPLICIT_LEGACY_CHOICE','sharing_status':sharing_status,'rm_suggested':rm_suggested}
     if getattr(answer,'route_mismatch',None):out_payload['route_mismatch']=answer.route_mismatch
     if answer.suggestions:out_payload['suggestions']=answer.suggestions
     if answer.thinking_level:out_payload['thinking_level']=answer.thinking_level
@@ -275,7 +282,9 @@ def journeys(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_use
     if user.role=='CUSTOMER':rows=db.query(Journey).filter_by(tenant_id=user.tenant_id,party_id=user.entity_id,kind='RM_FOLLOWUP').all()
     else:
         require_rm(user);rows=db.query(Journey).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,kind='RM_FOLLOWUP').order_by(Journey.created_at.desc()).all()
-    return {'journeys':[(customer_journey_data(db,x) if user.role=='CUSTOMER' else journey_data(db,x)) for x in rows]}
+    sig_ids=[x.signal_id for x in rows if x.signal_id]
+    prefs=contact_preferences_for_signals(db,user.tenant_id,sig_ids)
+    return {'journeys':[(customer_journey_data(db,x,pref=prefs.get(x.signal_id)) if user.role=='CUSTOMER' else journey_data(db,x,pref=prefs.get(x.signal_id))) for x in rows]}
 
 @router.get('/journeys/{id}',response_model=RMJourney)
 def journey(id:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
@@ -322,24 +331,91 @@ def import_prospects(req:RMImportRequest,db:Session=Depends(get_db),user:Current
 def customer_progress(party_id:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
     p=party_for(db,user,party_id,customer=True)
     rows=db.query(Journey).filter_by(tenant_id=user.tenant_id,party_id=p.id).order_by(Journey.created_at.desc()).limit(10).all()
-    return {'journeys':[customer_journey_data(db,x) for x in rows if x.kind=='RM_FOLLOWUP']}
+    sig_ids=[x.signal_id for x in rows if x.kind=='RM_FOLLOWUP' and x.signal_id]
+    prefs=contact_preferences_for_signals(db,user.tenant_id,sig_ids)
+    return {'journeys':[customer_journey_data(db,x,pref=prefs.get(x.signal_id)) for x in rows if x.kind=='RM_FOLLOWUP']}
 
 @router.get('/chat/{party_id}/requests',response_model=RMCustomerRequests)
 def customer_requests(party_id:str,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
     p=party_for(db,user,party_id,customer=True)
     if p.kind!='PERSON' or p.relationship!='EXISTING_CUSTOMER':raise HTTPException(403,'An existing personal customer relationship is required.')
     signals=db.query(Signal).filter_by(tenant_id=user.tenant_id,party_id=p.id).order_by(Signal.created_at.desc()).limit(40).all()
+    ids=[s.id for s in signals]
+    prefs=contact_preferences_for_signals(db,user.tenant_id,ids)
+    sources={x.id:x for x in db.query(Source).filter(Source.tenant_id==user.tenant_id,Source.party_id==p.id,Source.id.in_({s.source_id for s in signals})).all()} if signals else {}
+    tasks={x.signal_id:x for x in db.query(Journey).filter(Journey.tenant_id==user.tenant_id,Journey.party_id==p.id,Journey.kind=='RM_FOLLOWUP',Journey.signal_id.in_(ids)).all()} if signals else {}
     result=[]
     for signal in signals:
-        source=db.query(Source).filter_by(id=signal.source_id,tenant_id=user.tenant_id,party_id=p.id).first()
-        if not source:raise HTTPException(409,'Request source binding requires repair.')
-        if source.kind not in {'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE'}:continue
-        task=db.query(Journey).filter_by(tenant_id=user.tenant_id,party_id=p.id,signal_id=signal.id,kind='RM_FOLLOWUP').first()
-        state='CLOSED' if signal.workflow=='DISMISSED' else 'REVIEWED' if signal.review in {'ACCEPTED','EDITED'} else 'AWAITING_REVIEW'
-        due=None;updated=stamp(signal.updated_at)
-        if task:
-            public=customer_journey_data(db,task);due=public.get('due_at')
-            state={'PLANNED':'FOLLOWUP_PLANNED','IN_PROGRESS':'RM_PREPARING','DONE':'RM_WORK_RECORDED','CANCELLED':'CLOSED'}.get(task.status,state)
-            history=json.loads(task.history_json);updated=history[-1]['at'] if history else stamp(task.created_at)
-        result.append({'id':signal.id,'message':source.content,'status':state,'created_at':stamp(source.event_at),'updated_at':updated,'due_at':due,'mode':source.mode})
+        item=customer_request_data(db,signal,p,pref=prefs.get(signal.id),source=sources.get(signal.source_id),task=tasks.get(signal.id))
+        if item:result.append(item)
     return {'requests':result,'boundary':'RM preparation and work status only. No product opening, purchase, transaction outcome or external service resolution is inferred. Internal RM notes and drafts are excluded.'}
+
+@router.post('/chat/{party_id}/requests',response_model=RMCustomerRequest)
+def create_customer_request(party_id:str,req:RMCustomerRequestIn,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
+    p=party_for(db,user,party_id,customer=True)
+    if p.kind!='PERSON' or p.relationship!='EXISTING_CUSTOMER':raise HTTPException(403,'An existing personal customer relationship is required.')
+    if req.turn_id:
+        turn=db.query(Turn).filter_by(id=req.turn_id,tenant_id=user.tenant_id,party_id=p.id,actor_id=user.user_id).first()
+        if not turn:raise HTTPException(404,'Associated chat turn not found.')
+    redacted=redact_message(req.message)
+    payload=hash_payload({'party_id':party_id,'message':redacted,'method':req.method,'window':req.window,'turn_id':req.turn_id})
+    old=db.query(ContactPreference).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,request_key=req.request_key).first()
+    if old:
+        if old.payload_hash!=payload:raise HTTPException(409,'This request key was used for different request content.')
+        sig=db.query(Signal).filter_by(id=old.signal_id,tenant_id=user.tenant_id,party_id=p.id).first()
+        if not sig:raise HTTPException(409,'Request signal binding requires repair.')
+        return customer_request_data(db,sig,p,pref=old)
+    content_hash=hashlib.sha256(redacted.encode()).hexdigest()
+    source=Source(id=uid('MSG'),tenant_id=user.tenant_id,party_id=p.id,kind='CUSTOMER_RM_REQUEST',title='Message to RM · '+p.name,content=redacted,content_hash=content_hash,mode='SIMULATED')
+    db.add(source);db.flush()
+    from ..services.assistant.engine import service_issue_reported,classify
+    is_service=service_issue_reported(redacted)
+    route=classify(redacted)
+    category='SERVICE_ISSUE' if is_service else 'GUIDANCE'
+    urgency='URGENT' if route=='CARD' and any(x in redacted.casefold() for x in ['lost','stolen','fraud','unauthorized']) else 'TIME_SENSITIVE' if is_service else 'ROUTINE'
+    title={'LOAN':'Loan menu help needed' if category=='SERVICE_ISSUE' else 'Loan needs discussion','SERVICE':'Payment status needs help','CARD':'Card service needs attention' if category=='SERVICE_ISSUE' else 'Card conversation','WEALTH':'Customer goal needs guidance','SAVINGS':'Savings conversation','DEPOSIT':'Deposit / liquidity conversation','MERCHANT':'Business collections discussion'}.get(route,'Asked to talk')
+    semantic_key='RMREQ-'+hashlib.sha256(req.request_key.encode()).hexdigest()[:20]
+    owner=__import__('app.services.coverage',fromlist=['routing_owner']).routing_owner(db,p,escalate=True)
+    sig=Signal(id=uid('SIG'),tenant_id=user.tenant_id,party_id=p.id,source_id=source.id,turn_id=req.turn_id,owner_id=owner,semantic_key=semantic_key,category=category,urgency=urgency,evidence='CUSTOMER_CONFIRMED',title=title,need=redacted,rationale='Customer message supports this specific reviewable task; no purchase probability or financial authority inferred.',uncertainty='Needs and permitted next action require RM review; no product activation or transaction result is inferred.',confirmed=True)
+    db.add(sig);db.flush()
+    pref=ContactPreference(id=uid('CPREF'),tenant_id=user.tenant_id,party_id=p.id,signal_id=sig.id,actor_id=user.user_id,method=req.method,window=req.window,request_key=req.request_key,payload_hash=payload)
+    db.add(pref)
+    review_event(db,user,sig.id,'CUSTOMER_RM_REQUEST','Customer submitted direct message to RM.',{},{'signal_id':sig.id,'method':req.method,'window':req.window,'request_key':req.request_key,'turn_id':req.turn_id})
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing=db.query(ContactPreference).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,request_key=req.request_key).first()
+        if existing and existing.payload_hash==payload:
+            sig=db.query(Signal).filter_by(id=existing.signal_id,tenant_id=user.tenant_id,party_id=p.id).first()
+            if not sig:raise HTTPException(409,'Request signal binding requires repair.')
+            return customer_request_data(db,sig,p,pref=existing)
+        raise HTTPException(409,'This request key was used for different request content.')
+    return customer_request_data(db,sig,p,pref=pref)
+
+@router.post('/chat/{party_id}/requests/{signal_id}/preference',response_model=RMCustomerRequest)
+def record_contact_preference(party_id:str,signal_id:str,req:RMContactPreferenceIn,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
+    p=party_for(db,user,party_id,customer=True)
+    if p.kind!='PERSON' or p.relationship!='EXISTING_CUSTOMER':raise HTTPException(403,'An existing personal customer relationship is required.')
+    signal=db.query(Signal).filter_by(id=signal_id,tenant_id=user.tenant_id,party_id=p.id).first()
+    if not signal:raise HTTPException(404,'Signal not found.')
+    source=db.query(Source).filter_by(id=signal.source_id,tenant_id=user.tenant_id,party_id=p.id).first()
+    if not source or need_origin(signal,source)!='REQUEST':raise HTTPException(404,'Customer request not found.')
+    payload=hash_payload({'signal_id':signal.id,'method':req.method,'window':req.window})
+    old=db.query(ContactPreference).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,request_key=req.request_key).first()
+    if old:
+        if old.payload_hash!=payload or old.signal_id!=signal.id or old.party_id!=p.id:
+            raise HTTPException(409,'Contact preference request key conflicts with an existing record.')
+        return customer_request_data(db,signal,p,pref=old)
+    task=db.query(Journey).filter_by(tenant_id=user.tenant_id,party_id=p.id,signal_id=signal.id,kind='RM_FOLLOWUP').first()
+    if signal.workflow in {'COMPLETED','DISMISSED'} or (task and task.status in {'DONE','CANCELLED'}):
+        raise HTTPException(409,'This request is closed; contact preference cannot be updated.')
+    pref=ContactPreference(id=uid('CPREF'),tenant_id=user.tenant_id,party_id=p.id,signal_id=signal.id,actor_id=user.user_id,method=req.method,window=req.window,request_key=req.request_key,payload_hash=payload)
+    db.add(pref)
+    try:db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing=db.query(ContactPreference).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,request_key=req.request_key).first()
+        if existing and existing.payload_hash==payload and existing.signal_id==signal.id:return customer_request_data(db,signal,p,pref=existing)
+        raise HTTPException(409,'Contact preference request key conflicts with an existing record.')
+    return customer_request_data(db,signal,p,pref=pref)

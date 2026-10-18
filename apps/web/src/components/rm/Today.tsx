@@ -81,7 +81,7 @@ function QueueRow({item}:{item:RMTodayNeed}){
      <span className="today-row-time">{timeAgo(s.created_at)}</span>
     </div>
     <div className="today-row-title">{s.title}</div>
-    <p className="today-row-need">{s.origin==='CHAT'&&item.quote?`“${item.quote}”`:s.need}</p>
+    <p className="today-row-need">{(s.origin==='CHAT'||s.origin==='REQUEST')&&item.quote?`“${item.quote}”`:s.need}</p>
     <div className="today-row-chips">
      {urgency&&<Status tone={urgency.tone}>{urgency.text}</Status>}
      <Status tone={step.step===2?'good':step.step===1?'warn':'neutral'}>{step.status}</Status>

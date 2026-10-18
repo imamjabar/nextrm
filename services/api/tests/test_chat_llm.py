@@ -483,6 +483,24 @@ def test_paraphrased_need_keeps_answer_and_drops_need_and_signal(monkeypatch):
     assert data['signal_id'] is None
 
 
+@pytest.mark.parametrize('message,expected', [
+    ('i want my RM explain to me about the CC', True),
+    ('Can my RM call me about my credit card limit?', True),
+    ('Share request with my RM', True),
+    ('What does the RM role mean?', False),
+    ('Do not contact me, my RM is fine', False),
+])
+def test_rm_request_phrasings_are_recognised(message, expected):
+    from app.services.assistant.engine import human_help_requested
+    assert human_help_requested(message) is expected
+
+
+def test_cc_abbreviation_routes_to_cards():
+    from app.services.assistant.engine import classify
+    assert classify('i want my RM explain to me about the CC') == 'CARD'
+    assert classify('My account balance changed') != 'CARD'
+
+
 def test_human_help_request_creates_guidance_signal_from_own_words(monkeypatch):
     """Human-help requests create guidance signal from the customer's own words."""
     monkeypatch.setenv('NEXTRM_AI_PROVIDER', 'gemini')
@@ -651,7 +669,8 @@ def test_all_evaluation_cases_pass():
                 'governance_context': resolve(DEFAULT, c['question']),
             },
         )
-        qa = ans.route == c['route'] and c['contains'].casefold() in ans.text.casefold()
+        expected_phrases = [p.strip().casefold() for p in c['contains'].split('|')]
+        qa = ans.route == c['route'] and any(p in ans.text.casefold() for p in expected_phrases)
         tools = (
             ans.route == c['route']
             and {x['name'] for x in ans.tools}

@@ -44,9 +44,21 @@ let conversation={id:'conv',version:1,party,institution_name:'Demo bank',turns:[
 const feed={profile:{version:1,commercial_allowed:true},nudges:[],insights:[{key:'cash_flow',title:'Cash flow',status:'AVAILABLE',currency:'IDR',values:{available:'12500000.00',commitments:'4700000.00',difference:'7800000.00'},source,explanation:'Validated snapshot'},{key:'spending',title:'Transport spending',status:'AVAILABLE',currency:'IDR',values:{current_spend:'1150000.00',previous_spend:'900000.00',change_percent:'27.78'},source,explanation:'Comparable 30-day periods.'}],comparisons:[{title:'Term deposit discussion',ownership:'Not shown',education:'Approved facts',source}]};
 const contact={name:'Maya Putri',email:null,phone:null,email_href:null,phone_href:null,status:'NOT_CONFIGURED',mode:'UNAVAILABLE'};
 let calls=[];const refresh=async()=>{};
-overrides.set('@/components/rm/shared',{...shared,useRM:path=>({data:path==='/v1/rm/parties'?{parties:[party]}:path.endsWith('/sessions')?{sessions:[{id:'chat-one',title:'A saved chat',version:1,created_at:'2026-10-03T00:00:00Z',updated_at:'2026-10-03T00:00:00Z',turn_count:0}],next_cursor:null}:path.includes('/sessions/')?{...conversation,id:'chat-one'}:path.endsWith('/engagement')?feed:path.endsWith('/rm-contact')?contact:conversation,error:'',refresh,pending:false})});
+overrides.set('@/components/rm/shared',{...shared,useRM:path=>({data:path==='/v1/rm/parties'?{parties:[party]}:path.endsWith('/requests')?{requests:[],boundary:''}:path.endsWith('/sessions')?{sessions:[{id:'chat-one',title:'A saved chat',version:1,created_at:'2026-10-03T00:00:00Z',updated_at:'2026-10-03T00:00:00Z',turn_count:0}],next_cursor:null}:path.includes('/sessions/')?{...conversation,id:'chat-one'}:path.endsWith('/engagement')?feed:path.endsWith('/rm-contact')?contact:conversation,error:'',refresh,pending:false})});
 overrides.set('@/components/rm/MenuLinks',{MenuLinks:()=>null});
-overrides.set('@/lib/api',{...api,fetchApi:async(path,options)=>{const body=JSON.parse(options.body);calls.push({path,body});if(path.endsWith('/sessions'))return {id:'chat-one',title:'New conversation',version:1,created_at:'2026-10-03T00:00:00Z',updated_at:'2026-10-03T00:00:00Z',turn_count:0};return path.endsWith('/activity')?{id:'event',mode:'SIMULATED',signal_id:null}:{id:'turn',status:'COMPLETED',sources:[source],signal_id:'captured-signal',answer:'Approved answer'};}});
+overrides.set('@/lib/api',{...api,fetchApi:async(path,options)=>{
+  const body=JSON.parse(options.body);calls.push({path,body});
+  if(path.endsWith('/sessions'))return {id:'chat-one',title:'New conversation',version:1,created_at:'2026-10-03T00:00:00Z',updated_at:'2026-10-03T00:00:00Z',turn_count:0};
+  if(path.endsWith('/turns')){
+    const turn={id:'turn-one',status:'COMPLETED',sources:[source],signal_id:'captured-signal',answer:'Approved answer',rm_suggested:true,message:body.message};
+    conversation={...conversation,turns:[turn]};
+    return turn;
+  }
+  if(path.endsWith('/requests')){
+    return {id:'req-one',message:body.message,status:'SUBMITTED',created_at:'2026-10-18T00:00:00Z',updated_at:'2026-10-18T00:00:00Z',due_at:null,mode:'SIMULATED',contact_method:body.method,contact_window:body.window};
+  }
+  return path.endsWith('/activity')?{id:'event',mode:'SIMULATED',signal_id:null}:{id:'turn',status:'COMPLETED',sources:[source],signal_id:'captured-signal',answer:'Approved answer'};
+}});
 const Phone=load('app/(workspace)/customer/chat/page.tsx').default;
 const nodeOptions={createNodeMock:node=>node.type==='dialog'?{open:false,showModal(){this.open=true;},close(){this.open=false;}}:{focus(){},scrollTo(){},scrollHeight:500}};
 let tree;await act(async()=>{tree=Renderer.create(React.createElement(Phone),nodeOptions);});
@@ -58,7 +70,32 @@ assert.equal(tree.root.findByProps({className:'mvp-insights-view'}).props.hidden
 await click(tree,'Chats');
 await act(async()=>tree.root.findByProps({id:'customer-message'}).props.onChange({target:{value:'I need help with cash flow.'}}));
 await act(async()=>tree.root.findByType('form').props.onSubmit({preventDefault(){}}));
-assert.equal('share_with_rm' in calls.at(-1).body,false);
+assert.equal('share_with_rm' in calls.find(c=>c.path.endsWith('/turns')).body,false);
+const msgBtn=tree.root.findAllByType('button').find(n=>n.props.className?.includes('mvp-msg-rm-btn')&&labelText(n).trim()==='Message Maya');
+assert.ok(msgBtn,'an rm_suggested turn shows Message Maya button');
+await act(async()=>msgBtn.props.onClick());
+const textarea=tree.root.findByProps({id:'rm-message-text'});
+assert.equal(textarea.props.value,'I need help with cash flow.','opening prefills customer message');
+const sendBtn=tree.root.findAllByType('button').find(n=>labelText(n).trim()==='Send to Maya');
+assert.ok(sendBtn.props.disabled,'send disabled until method and window chosen');
+await click(tree,'Phone call');
+await click(tree,'Morning');
+assert.ok(!sendBtn.props.disabled,'send enabled when method and window chosen');
+await click(tree,'Send to Maya');
+const reqCall=calls.find(c=>c.path.endsWith('/requests'));
+assert.ok(reqCall,'posts to /requests');
+assert.equal(reqCall.body.message,'I need help with cash flow.');
+assert.equal(reqCall.body.method,'PHONE_CALL');
+assert.equal(reqCall.body.window,'MORNING');
+assert.equal(reqCall.body.turn_id,'turn-one');
+assert.ok(typeof reqCall.body.request_key==='string'&&reqCall.body.request_key.length>=8);
+assert.ok(labelText(tree.root).includes('Sent to Maya.'));
+assert.ok(labelText(tree.root).includes('Maya will call you in the morning.'));
+assert.ok(labelText(tree.root).includes('You can follow it on Home.'));
+await click(tree,'Done');
+assert.ok(labelText(tree.root).includes('Your RM, Maya'),'tracker empty state renders header title');
+assert.ok(labelText(tree.root).includes('Need help from Maya? Send a message and choose how Maya contacts you.'),'tracker empty state text');
+assert.ok(tree.root.findAllByType('button').some(n=>labelText(n).trim()==='Message Maya'),'tracker empty state button');
 await click(tree,'Home');assert.equal(tree.root.findByProps({className:'mvp-insights-view'}).props.hidden,false);
 assert.ok(labelText(tree.root).includes('IDR 12,500,000')&&!labelText(tree.root).includes('12,500,000.00'));
 assert.ok(/\+27\.78%/.test(labelText(tree.root)));
@@ -76,10 +113,11 @@ console.log('PASS actual product exploration emits observed telemetry and compos
 const contactButton=tree.root.findAllByType('button').find(n=>n.props['aria-label']==='Contact your RM');
 await act(async()=>contactButton.props.onClick());assert.equal(calls.at(-1).body.kind,'RM_CONTACT_VIEW');
 assert.ok(labelText(tree.root).includes('Maya Putri'));
-assert.ok(tree.root.findAllByType('button').find(n=>labelText(n)==='Email unavailable').props.disabled);
-assert.ok(tree.root.findAllByType('button').find(n=>labelText(n)==='Call unavailable').props.disabled);
-assert.equal(tree.root.findAllByType('a').filter(n=>n.props.href?.startsWith('mailto:')||n.props.href?.startsWith('tel:')).length,0);
-await act(async()=>tree.unmount());console.log('PASS RM contact sheet keeps official unconfigured channels unavailable and records a view, not a delivered message');
+assert.ok(labelText(tree.root).includes('maya.putri@sample.co.id'));
+assert.ok(labelText(tree.root).includes('+62123'));
+assert.ok(tree.root.findAllByType('a').find(n=>n.props.href==='mailto:maya.putri@sample.co.id'));
+assert.ok(tree.root.findAllByType('a').find(n=>n.props.href==='tel:+62123'));
+await act(async()=>tree.unmount());console.log('PASS RM contact sheet provides dummy contact channels and records a view, not a delivered message');
 const presentation=load('lib/engagement-presentation.ts');
 assert.equal(presentation.insightValue('gain_loss_percent','-0.96','IDR'),'-0.96%');
 assert.equal(presentation.insightValue('current_spend','1150000.00','IDR'),'IDR 1,150,000');
@@ -99,7 +137,7 @@ const planningFeed={
     {key:'next_actions',title:'Next steps',status:'AVAILABLE',currency:'IDR',values:{},rows:[{rank:'1',topic:'Debt',action:'Pay high-interest card first',reason:'Saves IDR 125,000 monthly'}],method:'FIN-PLAN-8'}
   ]
 };
-overrides.set('@/components/rm/shared',{...shared,useRM:path=>({data:path.endsWith('/engagement')?planningFeed:feed,error:'',refresh,pending:false})});
+overrides.set('@/components/rm/shared',{...shared,useRM:path=>({data:path.endsWith('/requests')?{requests:[],boundary:''}:path.endsWith('/engagement')?planningFeed:feed,error:'',refresh,pending:false})});
 cache.delete(path.resolve(root,'components/rm/CustomerInsights.tsx'));
 const {CustomerInsights:PlanningInsights}=load('components/rm/CustomerInsights.tsx');
 let planningTree;

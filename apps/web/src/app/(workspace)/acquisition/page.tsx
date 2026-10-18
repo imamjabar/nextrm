@@ -197,6 +197,7 @@ export default function Acquisition() {
       }
     } catch (err: unknown) {
       if (seq === reqSeq.current) {
+        setPlaces([]);
         setPoiError(err instanceof Error ? err.message : 'Could not load places');
       }
     } finally {
@@ -264,6 +265,8 @@ export default function Acquisition() {
 
   const locate = () => {
     setLocationError('');
+    setGeocodeNotice('');
+    setPending('');
     if (!navigator.geolocation) {
       setLocationError('Device location is unavailable. The example office remains selected.');
       return;
@@ -289,6 +292,7 @@ export default function Acquisition() {
           mode: 'DEVICE',
           label: 'Your location',
         });
+        if (radius === 0) setRadius(5);
         setLocating(false);
       },
       error => {
@@ -315,19 +319,66 @@ export default function Acquisition() {
     if (!qStr) return;
     setGeocoding(true);
     setGeocodeNotice('');
+    setPending('');
+
+    // Try Google Maps client geocoder if available in browser
+    if (typeof window !== 'undefined' && 'google' in window) {
+      const gObj = Reflect.get(window, 'google');
+      if (gObj && typeof gObj === 'object' && 'maps' in gObj) {
+        const mapsObj = Reflect.get(gObj, 'maps');
+        if (mapsObj && typeof mapsObj === 'object' && 'Geocoder' in mapsObj) {
+          const GeocoderCtor = Reflect.get(mapsObj, 'Geocoder');
+          if (typeof GeocoderCtor === 'function') {
+            try {
+              type GeocodeResult = Array<{formatted_address: string; geometry: {location: {lat: () => number; lng: () => number}}}>;
+              const geocoder = new (GeocoderCtor as new () => {
+                geocode: (req: {address: string}, cb: (res: GeocodeResult | null, status: string) => void) => void;
+              })();
+              const clientRes = await new Promise<{lat: number; lng: number; label: string} | null>(resolve => {
+                geocoder.geocode({address: qStr}, (res, status) => {
+                  if (status === 'OK' && res && res[0]) {
+                    const loc = res[0].geometry.location;
+                    resolve({lat: loc.lat(), lng: loc.lng(), label: res[0].formatted_address});
+                  } else {
+                    resolve(null);
+                  }
+                });
+              });
+              if (clientRes) {
+                if (radius === 0) setRadius(5);
+                setCenter({
+                  latitude: clientRes.lat,
+                  longitude: clientRes.lng,
+                  mode: 'PLACE',
+                  label: clientRes.label.split(',')[0] || clientRes.label,
+                });
+                setAddress('');
+                setGeocoding(false);
+                return;
+              }
+            } catch {
+              // Fall through to server geocode
+            }
+          }
+        }
+      }
+    }
+
     try {
       const data = await fetchApi<RMGeocode>(`/v1/rm/poi/geocode?q=${encodeURIComponent(qStr)}`);
       if (data.results && data.results.length > 0) {
         const r = data.results[0];
+        if (radius === 0) setRadius(5);
         setCenter({
           latitude: Number(r.latitude),
           longitude: Number(r.longitude),
           mode: 'PLACE',
-          label: r.label,
+          label: r.label.split(' - ')[0] || r.label,
         });
+        setAddress('');
         setGeocodeNotice('');
       } else {
-        setGeocodeNotice(`No place found for "${qStr}".`);
+        setGeocodeNotice(`No place found for "${qStr}". Try a city like Singapore, Jakarta, or "lat, lng" coordinates.`);
       }
     } catch (err: unknown) {
       setGeocodeNotice(err instanceof Error ? err.message : 'Address search failed.');

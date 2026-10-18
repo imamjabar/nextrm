@@ -177,7 +177,7 @@ export function GoogleTerritoryMap({
         ) : !apiKey || failed ? (
           fallback
         ) : (
-          <MapBoundary fallback={fallback}><APIProvider apiKey={apiKey}>
+          <MapBoundary fallback={fallback}><APIProvider apiKey={apiKey} libraries={['places', 'geometry', 'marker']}>
             <div className="google-map-frame" style={{width: '100%', height: '100%', position: 'relative'}}>
               <Map
                 mapId={mapId || 'DEMO_MAP_ID'}

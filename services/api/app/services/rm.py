@@ -2,7 +2,18 @@ import json,hashlib,uuid,os
 from datetime import datetime,timezone
 from fastapi import HTTPException
 from sqlalchemy import update
-from ..models.relationships import Party,ContactLink,Source,Signal,Journey,ReviewEvent,QualityGrant,Turn
+from ..models.relationships import Party,ContactLink,Source,Signal,Journey,ReviewEvent,QualityGrant,Turn,ContactPreference
+
+_UNSET = object()
+
+def contact_preferences_for_signals(db, tenant_id, signal_ids):
+    valid = [s for s in signal_ids if s]
+    if not valid: return {}
+    rows = db.query(ContactPreference).filter(ContactPreference.tenant_id == tenant_id, ContactPreference.signal_id.in_(valid)).order_by(ContactPreference.created_at.desc(), ContactPreference.id.desc()).all()
+    prefs = {}
+    for r in rows:
+        if r.signal_id not in prefs: prefs[r.signal_id] = r
+    return prefs
 from ..models.entities import UserAssignmentModel,utc_now
 from .assistant.engine import provider_info,ROUTE_KB
 
@@ -68,22 +79,28 @@ def party_data(db,p):
 
 CHAT_SOURCES={'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE'}
 NEED_GROUPS=('PROBLEM','READY','ASKED','SPOTTED')
-def need_origin(s,source):return 'APP' if s.semantic_key.startswith('APP-') else 'INSIGHT' if s.semantic_key.startswith('FIN-') else 'CHAT' if source and source.kind in CHAT_SOURCES else 'EVENT'
-def need_group(s,origin,hot):return 'PROBLEM' if s.category=='SERVICE_ISSUE' else 'READY' if hot else 'ASKED' if origin=='CHAT' else 'SPOTTED'
+def is_request_signal(s,source):return bool(source and source.kind=='CUSTOMER_RM_REQUEST') or bool(s and (s.semantic_key.startswith('NUDGE-') or s.semantic_key.startswith('RMREQ-')))
+def need_origin(s,source):return 'REQUEST' if is_request_signal(s,source) else 'APP' if s.semantic_key.startswith('APP-') else 'INSIGHT' if s.semantic_key.startswith('FIN-') else 'CHAT' if source and source.kind in CHAT_SOURCES else 'EVENT'
+def need_group(s,origin,hot):return 'PROBLEM' if s.category=='SERVICE_ISSUE' else 'READY' if hot else 'ASKED' if origin=='REQUEST' else 'SPOTTED'
 def need_order(row):return (NEED_GROUPS.index(row['group']),-datetime.fromisoformat(row['created_at']).timestamp(),row['id'])
 
-def signal_data(db,s):
+def signal_data(db,s,pref=_UNSET):
     p=db.query(Party).filter_by(id=s.party_id,tenant_id=s.tenant_id).one();source=db.query(Source).filter_by(id=s.source_id,tenant_id=s.tenant_id,party_id=s.party_id).first()
     fresh=source and (utc_now()-source.event_at.replace(tzinfo=timezone.utc)).days<=30
     hot=s.category=='OPPORTUNITY' and s.confirmed and s.review in {'ACCEPTED','EDITED'} and s.workflow not in {'DISMISSED','COMPLETED'} and p.contact=='ALLOWED' and p.identity=='CONFIRMED' and fresh
     origin=need_origin(s,source)
-    return {'id':s.id,'party_id':p.id,'name':p.name,'category':s.category,'urgency':s.urgency,'evidence':s.evidence,'workflow':s.workflow,'review':s.review,'title':s.title,'need':s.need,'rationale':s.rationale+(' Hot-lead rule REL-1: explicit sourced interest, accepted review, fresh evidence, confirmed identity and current permitted follow-up.' if hot else '')+ ' Priority rule PRI-1: urgent/time-sensitive help, service need, evidence and freshness before routine commercial work.','uncertainty':('Interpretation reviewed. Destination/product outcome remains unconfirmed; no approval or execution is implied.' if s.review in {'ACCEPTED','EDITED'} else s.uncertainty),'confirmed':s.confirmed,'version':s.version,'source_id':s.source_id,'turn_id':s.turn_id,'created_at':stamp(s.created_at),'display_label':'Hot lead' if hot else 'Potential opportunity' if s.category=='OPPORTUNITY' else s.category.replace('_',' ').title(),'contact':p.contact,'origin':origin,'group':need_group(s,origin,hot)}
+    if pref is _UNSET:
+        pref=db.query(ContactPreference).filter_by(tenant_id=s.tenant_id,signal_id=s.id).order_by(ContactPreference.created_at.desc(),ContactPreference.id.desc()).first()
+    return {'id':s.id,'party_id':p.id,'name':p.name,'category':s.category,'urgency':s.urgency,'evidence':s.evidence,'workflow':s.workflow,'review':s.review,'title':s.title,'need':s.need,'rationale':s.rationale+(' Hot-lead rule REL-1: explicit sourced interest, accepted review, fresh evidence, confirmed identity and current permitted follow-up.' if hot else '')+ ' Priority rule PRI-1: urgent/time-sensitive help, service need, evidence and freshness before routine commercial work.','uncertainty':('Interpretation reviewed. Destination/product outcome remains unconfirmed; no approval or execution is implied.' if s.review in {'ACCEPTED','EDITED'} else s.uncertainty),'confirmed':s.confirmed,'version':s.version,'source_id':s.source_id,'turn_id':s.turn_id,'created_at':stamp(s.created_at),'display_label':'Hot lead' if hot else 'Potential opportunity' if s.category=='OPPORTUNITY' else s.category.replace('_',' ').title(),'contact':p.contact,'origin':origin,'group':need_group(s,origin,hot),'contact_method':pref.method if pref else None,'contact_window':pref.window if pref else None}
 
-def journey_data(db,x):
+def journey_data(db,x,pref=_UNSET):
     from ..models.relationships import FollowupDetail
     detail=db.query(FollowupDetail).filter_by(id=x.id,tenant_id=x.tenant_id).first()
     p=db.query(Party).filter_by(id=x.party_id,tenant_id=x.tenant_id).one()
-    return {'id':x.id,'party_id':p.id,'name':p.name,'kind':x.kind,'need':x.need,'status':x.status,'stage':x.stage,'version':x.version,'operation_ref':x.operation_ref,'draft':x.draft,'source_id':x.source_id,'signal_id':x.signal_id,'prospect_id':x.prospect_id,'history':json.loads(x.history_json),'due_at':next((h.get('due_at') for h in reversed(json.loads(x.history_json)) if h.get('due_at')),None),'completion_rule':'RM records completion of the follow-up work. This is not product opening, approval, activation or service resolution.' if x.kind=='RM_FOLLOWUP' else 'Account opening AND first relevant activation acknowledged for this party.' if x.kind=='ONBOARDING_ACTIVATION' else 'Recorded RM-conversation outcome with reviewed need; no product activation implied.' if x.kind=='RM_CONVERSATION' else 'Service-resolution receipt plus configured customer confirmation.','mode':'HUMAN_RECORDED' if x.kind=='RM_FOLLOWUP' else 'SIMULATED','snoozed_until':stamp(detail.snoozed_until) if detail and detail.snoozed_until else None,'outcome':detail.outcome if detail else None}
+    if pref is _UNSET:
+        pref=db.query(ContactPreference).filter_by(tenant_id=x.tenant_id,signal_id=x.signal_id).order_by(ContactPreference.created_at.desc(),ContactPreference.id.desc()).first() if x.signal_id else None
+    return {'id':x.id,'party_id':p.id,'name':p.name,'kind':x.kind,'need':x.need,'status':x.status,'stage':x.stage,'version':x.version,'operation_ref':x.operation_ref,'draft':x.draft,'source_id':x.source_id,'signal_id':x.signal_id,'prospect_id':x.prospect_id,'history':json.loads(x.history_json),'due_at':next((h.get('due_at') for h in reversed(json.loads(x.history_json)) if h.get('due_at')),None),'completion_rule':'RM records completion of the follow-up work. This is not product opening, approval, activation or service resolution.' if x.kind=='RM_FOLLOWUP' else 'Account opening AND first relevant activation acknowledged for this party.' if x.kind=='ONBOARDING_ACTIVATION' else 'Recorded RM-conversation outcome with reviewed need; no product activation implied.' if x.kind=='RM_CONVERSATION' else 'Service-resolution receipt plus configured customer confirmation.','mode':'HUMAN_RECORDED' if x.kind=='RM_FOLLOWUP' else 'SIMULATED','snoozed_until':stamp(detail.snoozed_until) if detail and detail.snoozed_until else None,'outcome':detail.outcome if detail else None,'contact_method':pref.method if pref else None,'contact_window':pref.window if pref else None}
+
 
 def review_event(db,user,resource,action,reason,before,after):
     db.add(ReviewEvent(id=uid('REVIEW'),tenant_id=user.tenant_id,resource_id=resource,actor_id=user.user_id,action=action,reason=reason,before_json=j(before),after_json=j(after)))
@@ -100,8 +117,7 @@ def turn_data(db,t):
         source=db.query(Source).filter_by(id=id,tenant_id=t.tenant_id).first()
         if source and source.kind!='APPROVED_KNOWLEDGE' and (source.party_id!=t.party_id or source.kind not in {'BANK_DATA_SUMMARY','AUTHORIZED_FINANCIAL_SUMMARY'}):source=None
         if source:sources.append(source_data(source))
-    return {'id':t.id,'message':t.message,'answer':t.answer,'status':t.status,'route':t.route,'mode':t.mode,'model':t.model,'created_at':stamp(t.created_at),'latency_ms':t.latency_ms,'sources':sources,'tools':json.loads(t.tools_json),'signal_id':out.get('signal_id'),'error_code':t.error_code,'governance':out.get('governance'),'sharing_status':out.get('sharing_status','SHARED' if out.get('signal_id') else 'NOT_RECORDED'),'suggestions':out.get('suggestions',[]),'thinking_level':out.get('thinking_level')}
-
+    return {'id':t.id,'message':t.message,'answer':t.answer,'status':t.status,'route':t.route,'mode':t.mode,'model':t.model,'created_at':stamp(t.created_at),'latency_ms':t.latency_ms,'sources':sources,'tools':json.loads(t.tools_json),'signal_id':out.get('signal_id'),'error_code':t.error_code,'governance':out.get('governance'),'sharing_status':out.get('sharing_status','SHARED' if out.get('signal_id') else 'NOT_RECORDED'),'suggestions':out.get('suggestions',[]),'thinking_level':out.get('thinking_level'),'rm_suggested':out.get('rm_suggested',False)}
 
 def priority_key(signal):
     closed=signal.workflow in {'COMPLETED','DISMISSED'}
@@ -132,14 +148,29 @@ def prospect_priority(prospect,party,source):
     return (2,'REVIEW','Supplied referral or source record; no customer-confirmed need inferred.','Confirm the goal and permitted purpose')
 
 
-def customer_journey_data(db,x):
-    result=journey_data(db,x)
+def customer_journey_data(db,x,pref=_UNSET):
+    result=journey_data(db,x,pref=pref)
     source=db.query(Source).filter_by(id=x.source_id,tenant_id=x.tenant_id,party_id=x.party_id).first()
-    result['need']=source.content if source and source.kind in {'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE'} else 'Your shared journey progress'
     result['draft']='Internal RM drafts are not released to the customer.'
+    result['need']=source.content if source and source.kind in {'CUSTOMER_MESSAGE','SIMULATED_CUSTOMER_MESSAGE','CUSTOMER_RM_REQUEST'} else 'Your shared journey progress'
     result['signal_id']=None;result['prospect_id']=None
     result['history']=[{k:v for k,v in h.items() if k in {'event','status','at','reference','mode'}} for h in result['history']]
     return result
+
+def customer_request_data(db,signal,p,pref=_UNSET,source=_UNSET,task=_UNSET):
+    if source is _UNSET:source=db.query(Source).filter_by(id=signal.source_id,tenant_id=p.tenant_id,party_id=p.id).first()
+    if not source:raise HTTPException(409,'Request source binding requires repair.')
+    if need_origin(signal,source)!='REQUEST':return None
+    if task is _UNSET:task=db.query(Journey).filter_by(tenant_id=p.tenant_id,party_id=p.id,signal_id=signal.id,kind='RM_FOLLOWUP').first()
+    state='CLOSED' if signal.workflow in {'DISMISSED','COMPLETED'} else 'REVIEWED' if signal.review in {'ACCEPTED','EDITED'} else 'AWAITING_REVIEW'
+    due=None;updated=stamp(signal.updated_at)
+    if task:
+        public=customer_journey_data(db,task,pref=pref);due=public.get('due_at')
+        state={'PLANNED':'FOLLOWUP_PLANNED','IN_PROGRESS':'RM_PREPARING','DONE':'RM_WORK_RECORDED','CANCELLED':'CLOSED'}.get(task.status,state)
+        history=json.loads(task.history_json);updated=history[-1]['at'] if history else stamp(task.created_at)
+    if pref is _UNSET:
+        pref=db.query(ContactPreference).filter_by(tenant_id=p.tenant_id,signal_id=signal.id).order_by(ContactPreference.created_at.desc(),ContactPreference.id.desc()).first()
+    return {'id':signal.id,'message':source.content,'status':state,'created_at':stamp(source.event_at),'updated_at':updated,'due_at':due,'mode':source.mode,'contact_method':pref.method if pref else None,'contact_window':pref.window if pref else None}
 
 def record_ai_audit_event(db,user,action,resource_type,resource_id,mode,model,prompt_version,latency_ms,source_ids):
     meta={'resource_type':resource_type,'mode':mode,'model':model,'prompt_version':prompt_version,'latency_ms':latency_ms,'source_ids':sorted(source_ids)}

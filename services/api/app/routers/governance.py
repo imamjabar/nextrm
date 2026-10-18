@@ -6,7 +6,7 @@ from ..core.security import CurrentUser,get_current_user
 from ..models.relationships import GovernanceRelease,ReviewEvent,RMCapacity,CustomerCoverage,Party,Signal,Journey,Prospect,Source
 from ..models.entities import UserAssignmentModel,utc_now
 from ..schemas.rm import *
-from ..services.rm import cas,j,uid,hash_payload,stamp,review_event,require_rm,signal_data
+from ..services.rm import cas,j,uid,hash_payload,stamp,review_event,require_rm,signal_data,contact_preferences_for_signals
 from ..services.governance import require_governor,draft_for,released,validate_definition,test_definition,resolve,BOUNDARIES
 from ..services.coverage import capacity_for,dedicated_count,active_count,POOL_OWNER
 router=APIRouter(prefix='/v1/rm',tags=['governance-and-coverage'])
@@ -105,7 +105,7 @@ def set_coverage(pid:str,req:RMCoverageUpdate,db:Session=Depends(get_db),user:Cu
     owner=req.rm_id if req.mode=='DEDICATED' else POOL_OWNER
     for s in db.query(Signal).filter_by(tenant_id=user.tenant_id,party_id=pid).filter(Signal.workflow.notin_(['COMPLETED','DISMISSED'])):
         source=db.query(Source).filter_by(id=s.source_id,tenant_id=user.tenant_id,party_id=pid).first()
-        human=bool(source and source.kind=='CUSTOMER_MESSAGE' and __import__('app.services.assistant.engine',fromlist=['human_help_requested']).human_help_requested(source.content))
+        human=bool(source and (source.kind=='CUSTOMER_RM_REQUEST' or (source.kind=='CUSTOMER_MESSAGE' and __import__('app.services.assistant.engine',fromlist=['human_help_requested']).human_help_requested(source.content))))
         s.owner_id=('DIGITAL:'+user.tenant_id if req.mode=='DIGITAL' and s.category!='SERVICE_ISSUE' and not human else owner);s.version+=1
     # Existing-customer duplicates remain held; do not silently reassign historical acquisition records.
     for prospect in db.query(Prospect).filter_by(tenant_id=user.tenant_id,party_id=pid):prospect.owner_id=p.owner_id
@@ -116,7 +116,8 @@ def pool(db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
     require_rm(user);capacity=capacity_for(db,user.tenant_id,user.user_id)
     if not capacity.pool_enabled:raise HTTPException(403,'You are not enabled for the institution shared pool.')
     rows=db.query(Signal).filter_by(tenant_id=user.tenant_id,owner_id=POOL_OWNER).filter(Signal.workflow.notin_(['COMPLETED','DISMISSED'])).order_by(Signal.created_at.desc()).limit(100).all()
-    return {'signals':[signal_data(db,s) for s in rows],'capacity':capacity.case_limit,'active_cases':active_count(db,user.tenant_id,user.user_id),'method':'Only scoped event/need summaries are visible before a capacity-checked claim. Customer detail access is granted for the active claimed case.'}
+    prefs=contact_preferences_for_signals(db,user.tenant_id,[s.id for s in rows])
+    return {'signals':[signal_data(db,s,pref=prefs.get(s.id)) for s in rows],'capacity':capacity.case_limit,'active_cases':active_count(db,user.tenant_id,user.user_id),'method':'Only scoped event/need summaries are visible before a capacity-checked claim. Customer detail access is granted for the active claimed case.'}
 
 @router.post('/pool/{id}/claim',response_model=RMPool)
 def claim(id:str,req:RMPoolClaim,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):

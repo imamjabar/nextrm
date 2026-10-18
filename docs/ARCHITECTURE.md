@@ -78,7 +78,7 @@ flowchart TD
 
 ## 2. Data Model Overview
 
-The database migration history contains earlier tables that the app no longer uses. The active NextRM domain is modeled across 25 dedicated `rm_*` tables, grouped by functional domain:
+The database migration history contains earlier tables that the app no longer uses. The active NextRM domain is modeled across 26 dedicated `rm_*` tables, grouped by functional domain:
 
 | Domain | Table Name | Entity & Purpose |
 |---|---|---|
@@ -98,6 +98,7 @@ The database migration history contains earlier tables that the app no longer us
 | | `rm_journeys` | Houses `RM_FOLLOWUP` work items (states: `PLANNED`, `IN_PROGRESS`, `DONE`, `CANCELLED`). Idempotently linked to source signals or prospects. |
 | | `rm_followup_details` | Extends follow-up journeys with snooze scheduling (`snoozed_until`) and structured human outcomes. |
 | | `rm_contact_records` | Staff logging of direct customer contacts (channel, purpose, event timestamp, and RM notes). |
+| | `rm_contact_preferences` | Append-only customer choice of how (`PHONE_CALL`, `VIDEO_CALL`, `BRANCH_MEETING`, `EMAIL`) and when (`MORNING`, `AFTERNOON`, `ANY_TIME`) the RM should reach them for one request. The newest row is current. |
 | **Engagement & Nudges** | `rm_nudges` | In-app suggestions presented on the customer home surface. Lifecycle: `AVAILABLE` → `EXPLORED` → `REQUESTED` → `DISMISSED`. |
 | | `rm_suggestion_meta` | Links nudges to family codes (E01–E12), category (`CARE`, `GUIDANCE`, `EDUCATION`, `RECOGNITION`, `COMMERCIAL`), and topic. |
 | | `rm_engagement_profiles`| Stores customer-declared goals, horizons, and interests. |
@@ -120,7 +121,7 @@ NextRM exposes clean RESTful API surfaces under `/v1/rm`, grouped by functional 
 - `POST /v1/rm/chat/{party_id}/sessions`: Creates a new isolated chat session.
 - `GET /v1/rm/chat/{party_id}/memory?exclude={session_id}`: The customer's own recent questions (30 days, up to 6, archived chats excluded) and their topics from other chats. Customer account only. Turns use them for continuity unless sent with `use_memory: false`; answers and figures are never carried over, and each turn records `memory.used`, `turn_count` and `topics`.
 - `GET /v1/rm/chat/{party_id}/sessions/{id}`: Retrieves message history for a specific session.
-- `POST /v1/rm/chat/{party_id}/turns`: Submits a customer message; executes governance routing, model generation, validator checks, and conditional signal creation.
+- `POST /v1/rm/chat/{party_id}/turns`: Submits a customer message; executes governance routing, model generation, validator checks and, under the capture policy, creates a captured signal for the RM (origin `CHAT`, never shown in the customer's request list). `rm_suggested` tells the app to offer the "Message your RM" form when the customer asks for a person or reports a problem and the release allows `PROPOSE_SIGNAL`.
 - `GET /v1/rm/chat/{party_id}/nudges`: Retrieves active in-app suggestions filtered by care-first rules and suppression logic.
 - `POST /v1/rm/chat/{party_id}/nudges/{id}`: Records customer action on a nudge (`EXPLORE`, `REQUEST_HELP`, `DISMISS`).
 - `GET /v1/rm/chat/{party_id}/engagement`: Returns the enriched customer feed (insights, declared goals, nudges).
@@ -128,6 +129,9 @@ NextRM exposes clean RESTful API surfaces under `/v1/rm`, grouped by functional 
 - `POST /v1/rm/chat/{party_id}/feedback`: Records feedback on nudges (dismissal, snooze, opt-out).
 - `POST /v1/rm/chat/{party_id}/category`: Corrects spending insight categorization.
 - `GET /v1/rm/chat/{party_id}/rm-contact`: Returns bank-configured official RM contact information.
+- `GET /v1/rm/chat/{party_id}/requests`: The customer's own explicit RM requests (form messages and nudge help requests; captured chat signals are excluded) with customer-safe status (`AWAITING_REVIEW`, `REVIEWED`, `FOLLOWUP_PLANNED`, `RM_PREPARING`, `RM_WORK_RECORDED`, `CLOSED`), due date and contact preference. Internal notes and drafts are excluded.
+- `POST /v1/rm/chat/{party_id}/requests`: Creates an explicit RM request from the customer's own message with how and when to be contacted. Redacts credentials, stores a `CUSTOMER_RM_REQUEST` source, a reviewable signal (origin `REQUEST`, group `ASKED` unless it is a service issue) and the contact preference in one transaction. Idempotent on `request_key`; a reused key with a different payload returns 409.
+- `POST /v1/rm/chat/{party_id}/requests/{signal_id}/preference`: Records how and when the RM should reach the customer for an open request. Idempotent on `request_key`; closed requests return 409.
 - `POST /v1/rm/chat/{party_id}/activity`: Ingests customer app activity events.
 
 ### 2. RM Retention API (`/v1/rm/...`)

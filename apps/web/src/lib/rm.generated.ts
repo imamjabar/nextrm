@@ -160,6 +160,11 @@ export interface RMContact {
   source_ref: string;
   authority: string;
 }
+export interface RMContactPreferenceIn {
+  request_key: string;
+  method: "PHONE_CALL" | "VIDEO_CALL" | "BRANCH_MEETING" | "EMAIL";
+  window: "MORNING" | "AFTERNOON" | "ANY_TIME";
+}
 export interface RMContactRecord {
   id: string;
   channel: string;
@@ -276,6 +281,15 @@ export interface RMCustomerRequest {
   updated_at: string;
   due_at: string | null;
   mode: string;
+  contact_method?: string | null;
+  contact_window?: string | null;
+}
+export interface RMCustomerRequestIn {
+  request_key: string;
+  message: string;
+  method: "PHONE_CALL" | "VIDEO_CALL" | "BRANCH_MEETING" | "EMAIL";
+  window: "MORNING" | "AFTERNOON" | "ANY_TIME";
+  turn_id?: string | null;
 }
 export interface RMCustomerRequests {
   requests: Array<RMCustomerRequest>;
@@ -525,6 +539,8 @@ export interface RMJourney {
   due_at?: string | null;
   snoozed_until?: string | null;
   outcome?: string | null;
+  contact_method?: string | null;
+  contact_window?: string | null;
 }
 export interface RMJourneys {
   journeys: Array<RMJourney>;
@@ -804,8 +820,10 @@ export interface RMSignal {
   created_at: string;
   display_label: string;
   contact: string;
-  origin: "CHAT" | "APP" | "INSIGHT" | "EVENT";
+  origin: "CHAT" | "APP" | "INSIGHT" | "EVENT" | "REQUEST";
   group: "PROBLEM" | "READY" | "ASKED" | "SPOTTED";
+  contact_method?: string | null;
+  contact_window?: string | null;
 }
 export interface RMSignals {
   signals: Array<RMSignal>;
@@ -906,4 +924,5 @@ export interface RMTurn {
   governance?: Record<string, unknown> | null;
   suggestions?: Array<string>;
   thinking_level?: string | null;
+  rm_suggested?: boolean;
 }

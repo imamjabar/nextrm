@@ -219,6 +219,15 @@ class SessionTurn(Base):
     id=Column(String(80),ForeignKey('rm_turns.id'),primary_key=True);tenant_id=Column(String(50),ForeignKey('institutions.id'),nullable=False,index=True)
     session_id=Column(String(80),ForeignKey('rm_chat_sessions.id'),nullable=False,index=True)
 
-RM_TABLES.extend([GovernanceDraft,GovernanceRelease,RMCapacity,CustomerCoverage,ChatSession,SessionTurn])
+
+class ContactPreference(Base):
+    __tablename__='rm_contact_preferences'
+    id=Column(String(80),primary_key=True);tenant_id=Column(String(50),ForeignKey('institutions.id'),nullable=False,index=True)
+    party_id=Column(String(80),ForeignKey('rm_parties.id'),nullable=False);signal_id=Column(String(80),ForeignKey('rm_signals.id'),nullable=False)
+    actor_id=Column(String(80),nullable=False);method=Column(String(20),nullable=False);window=Column(String(20),nullable=False)
+    request_key=Column(String(100),nullable=False);payload_hash=Column(String(64),nullable=False)
+    created_at=Column(DateTime,nullable=False,default=utc_now)
+    __table_args__=(UniqueConstraint('tenant_id','actor_id','request_key'),Index('ix_rm_contact_pref_signal','tenant_id','signal_id','created_at'))
+RM_TABLES.extend([GovernanceDraft,GovernanceRelease,RMCapacity,CustomerCoverage,ChatSession,SessionTurn,ContactPreference])
 
 from .banking import BANKING_TABLES  # noqa: E402,F401  registers bank/POI tables on Base.metadata
