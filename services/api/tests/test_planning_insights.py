@@ -69,18 +69,25 @@ def test_recurring_subtotals_add_up_to_the_monthly_estimates_in_the_rows():
     v = recurring['values']
     assert (v['essential_total'], v['variable_total'], v['discretionary_total']) == ('2380000.00', '2483333.33', '705000.00')
     assert Decimal(v['monthly_total']) == sum(Decimal(v[k]) for k in ('essential_total', 'variable_total', 'discretionary_total')) == Decimal('5568333.33')
-    assert Decimal(v['monthly_total']) == Decimal(v['bills_monthly_total']) + Decimal(v['regular_monthly_total'])
+    assert Decimal(v['monthly_total']) == Decimal(v['committed_monthly_total']) + Decimal(v['regular_monthly_total'])
     transport = [r for r in recurring['rows'] if r['category'] == 'Transport']
     assert len(transport) == 3 and {r['category_monthly_total'] for r in transport} == {'IDR 683,333.33'}
 
 
-def test_weekly_shopping_is_regular_spending_not_a_subscription_and_is_expected_within_a_week():
+def test_subscriptions_are_cancellable_bills_are_obligations_and_weekly_shopping_is_a_regular_pattern():
     with SessionLocal() as db:
-        recurring = cards(db)['recurring']
+        built = cards(db)
+    recurring, safe = built['recurring'], built['safe_to_spend']
     rows = {r['label']: r for r in recurring['rows']}
-    bills = {label for label, r in rows.items() if r['group'] == 'Bill or subscription'}
-    assert bills == {'SMP Islam Al-Azhar Bekasi', 'IndiHome Telkom', 'PLN Persero', 'BPJS Kesehatan', 'Spotify AB'}
-    assert recurring['values']['bills_count'] == '5' and recurring['values']['bills_monthly_total'] == '2425000.00'
+    groups = lambda name: {label for label, r in rows.items() if r['group'] == name}
+    assert groups('Bill') == {'SMP Islam Al-Azhar Bekasi', 'IndiHome Telkom', 'PLN Persero', 'BPJS Kesehatan'}
+    assert groups('Subscription') == {'Spotify AB'} and rows['Spotify AB']['cancellable'] == 'true'
+    assert all(rows[label]['cancellable'] == 'false' for label in groups('Bill') | groups('Regular spending'))
+    v = recurring['values']
+    assert (v['bills_count'], v['bills_monthly_total'], v['subscriptions_count']) == ('4', '2380000.00', '1')
+    assert Decimal(v['committed_monthly_total']) == Decimal(v['bills_monthly_total']) + Decimal(v['subscriptions_monthly_total']) == Decimal('2425000.00')
+    assert Decimal(v['monthly_total']) == Decimal(v['committed_monthly_total']) + Decimal(v['regular_monthly_total'])
+    assert safe['values']['headroom_until_payday'] == '9452222.22' and safe['values']['everyday_spending_until_payday'] == '1047777.78'
     for weekly in ('Super Indo Bekasi', 'Restoran Padang Sederhana'):
         assert rows[weekly]['group'] == 'Regular spending' and rows[weekly]['cadence'] == 'Weekly'
         assert date(2026, 10, 15) <= datetime.strptime(rows[weekly]['next_expected'], '%d %b %Y').date() <= date(2026, 10, 22)

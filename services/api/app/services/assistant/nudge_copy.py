@@ -162,11 +162,11 @@ def deterministic_nudge_copy(card: dict[str, Any]) -> dict[str, str]:
         }
 
     if key == 'recurring':
-        amt = values.get('amount', 'IDR 0')
-        count = values.get('bills_count', '1')
+        amt = values.get('monthly_total', 'IDR 0')
+        subs = values.get('subscriptions_count', '0')
         return {
-            'title': 'Recurring charge review',
-            'body': f"Verified pattern: {count} recurring charge pattern(s) totalling {amt} recorded. No cancellation or payment is made.",
+            'title': 'Recurring payments review',
+            'body': f"About {amt} a month repeats, including {subs} subscription(s) you could cancel with the merchant. No cancellation or payment is made.",
             'prompt': 'Help me understand my recurring payments.',
         }
 

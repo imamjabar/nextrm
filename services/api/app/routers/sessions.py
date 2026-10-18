@@ -8,7 +8,7 @@ from ..core.database import get_db
 from ..core.security import CurrentUser,get_current_user
 from ..models.relationships import Conversation,Turn,ChatSession,SessionTurn
 from ..models.entities import utc_now
-from ..schemas.rm import RMNewSession,RMChatSession,RMChatSessions,RMConversation
+from ..schemas.rm import RMNewSession,RMChatSession,RMChatSessions,RMConversation,RMChatMemory
 from ..services.rm import party_for,uid,stamp,turn_data,party_data
 from ..services.assistant.engine import provider_info
 router=APIRouter(prefix='/v1/rm',tags=['customer-chat-sessions'])
@@ -46,6 +46,13 @@ def sessions(pid:str,cursor:str='',db:Session=Depends(get_db),user:CurrentUser=D
         q=q.filter(or_(ChatSession.updated_at<time,and_(ChatSession.updated_at==time,ChatSession.id<id)))
     rows=q.order_by(ChatSession.updated_at.desc(),ChatSession.id.desc()).limit(51).all();result=[data(db,user,s) for s in rows];db.commit()
     return {'sessions':sorted(result[:50],key=lambda x:(x['updated_at'],x['id']),reverse=True),'next_cursor':stamp(rows[49].updated_at)+'|'+rows[49].id if len(rows)>50 else None}
+
+@router.get('/chat/{pid}/memory',response_model=RMChatMemory)
+def memory(pid:str,exclude:str='',db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):
+    from ..services.assistant.memory import chat_memory
+    p=party_for(db,user,pid,customer=True)
+    if user.role!='CUSTOMER':raise HTTPException(403,'Earlier chats are visible only in the customer’s own account.')
+    return chat_memory(db,user,p.id,exclude_session_id=exclude or None)
 
 @router.post('/chat/{pid}/sessions',response_model=RMChatSession)
 def create(pid:str,req:RMNewSession,db:Session=Depends(get_db),user:CurrentUser=Depends(get_current_user)):

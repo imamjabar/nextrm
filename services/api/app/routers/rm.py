@@ -177,7 +177,7 @@ def chat_turn(party_id:str,req:RMChatRequest,db:Session=Depends(get_db),user:Cur
     if p.kind!='PERSON' or p.relationship!='EXISTING_CUSTOMER':raise HTTPException(403,'Retail chat requires an authorized person relationship.')
     from ..services.customer_activity import chat_capture,capture_policy
     capture=chat_capture(user,req.share_with_rm,message)
-    payload=hash_payload({'party':party_id,**req.model_dump(exclude={'session_id'} if req.session_id is None else set())})
+    payload=hash_payload({'party':party_id,**req.model_dump(exclude=({'session_id'} if req.session_id is None else set())|({'use_memory'} if req.use_memory else set()))})
     existing=db.query(Turn).filter_by(tenant_id=user.tenant_id,actor_id=user.user_id,request_key=req.request_key).first()
     if existing:
         if existing.payload_hash!=payload:raise HTTPException(409,'This request key was used for different message content.')
@@ -194,9 +194,13 @@ def chat_turn(party_id:str,req:RMChatRequest,db:Session=Depends(get_db),user:Cur
     completed_turns=list(reversed(turn_query.filter(Turn.status=='COMPLETED').order_by(Turn.created_at.desc(),Turn.id.desc()).limit(8).all()))
     history=[{'message':redact_message(t.message),'answer':t.answer} for t in completed_turns]
     previous=completed_turns[-1] if completed_turns else None;previous_route=previous.route if previous else ''
+    from ..services.assistant.memory import chat_memory,follow_up_anchor,EMPTY
+    memory=chat_memory(db,user,p.id,exclude_session_id=chat_session.id if chat_session else 'LEGACY-'+c.id) if req.use_memory else EMPTY
+    anchor=None if previous else follow_up_anchor(message,memory)
+    if anchor:memory={**memory,'anchor':anchor['message']};previous_route=anchor['route']
     from ..services.governance import current_decision
-    governance_decision=current_decision(db,user.tenant_id,message,previous_route)
-    kb=kb_for(db,user.tenant_id);ctx=party_data(db,p);ctx['governance_context']=governance_decision;ctx['history']=history
+    governance_decision=current_decision(db,user.tenant_id,message+(' '+anchor['message'] if anchor else ''),previous_route)
+    kb=kb_for(db,user.tenant_id);ctx=party_data(db,p);ctx['governance_context']=governance_decision;ctx['history']=history;ctx['memory']=memory
     from ..models.relationships import EngagementProfile
     from ..services.enrichment import fresh,scoped_source
     profile=db.query(EngagementProfile).filter_by(tenant_id=user.tenant_id,party_id=p.id).first();context_source=None
@@ -262,6 +266,7 @@ def chat_turn(party_id:str,req:RMChatRequest,db:Session=Depends(get_db),user:Cur
     if getattr(answer,'route_mismatch',None):out_payload['route_mismatch']=answer.route_mismatch
     if answer.suggestions:out_payload['suggestions']=answer.suggestions
     if answer.thinking_level:out_payload['thinking_level']=answer.thinking_level
+    out_payload['memory']={'used':req.use_memory,'turn_count':len(ctx['memory']['items']),'topics':ctx['memory']['topics']}
     t.answer=answer.text;t.route=answer.route;t.status='COMPLETED';t.tools_json=j(answer.tools);t.output_json=j(out_payload)
     db.commit();t.latency_ms=max(1,int((time.perf_counter()-start)*1000));db.commit();return turn_data(db,t)
 

@@ -1,13 +1,14 @@
 "use client";
 import type {ReactNode,Ref} from 'react';
 import {ArrowUpRight,ChevronLeft,ChevronRight} from 'lucide-react';
-import {allocationOf,billsOf,direction,goalsOf,holdingsOf,marketOf,PANEL_FOR_TOPIC,shown,shownDate,signed,spendingSlices,stepsOf,usable} from '@/lib/home-model';
-import type {Direction,GoalTone,Insights,Panel} from '@/lib/home-model';
+import {allocationOf,BILL_GROUPS,billsOf,direction,goalsOf,holdingsOf,marketOf,PANEL_FOR_TOPIC,shown,shownDate,signed,spendingSlices,STEP_TOPICS,stepsOf,usable} from '@/lib/home-model';
+import type {Direction,GoalTone,Insights,Panel,Step} from '@/lib/home-model';
 import type {RMComparison,RMEnrichedNudge} from '@/lib/rm.generated';
 import {ChangeBar,Donut,Progress,StackBar} from './HomeCharts';
 
 type Compose=(text:string)=>void;
-type Props={insights:Insights;compose:Compose;open:(panel:Panel)=>void};
+export type StepFocus={step:Step;index:number;total:number};
+type Props={insights:Insights;compose:Compose;open:(panel:Panel,focus?:StepFocus)=>void};
 
 const TONE_BY_DIRECTION:Record<Direction,string>={up:'good',down:'bad',flat:'neutral'};
 const TONE_BY_GOAL:Record<GoalTone,string>={complete:'good',on_track:'good',behind:'warn'};
@@ -17,7 +18,7 @@ export const PANEL_META:Record<Panel,{title:string;note:string}>={
   goals:{title:'Your goals',note:'Progress to each target date'},
   invest:{title:'Investments',note:'Holdings snapshot'},
   market:{title:'Market insights',note:'Context for your portfolio'},
-  cash:{title:'Bills and cash',note:'Until your next payday'},
+  cash:{title:'Cash and recurring payments',note:'Until your next payday'},
   worth:{title:'Net worth and financial health',note:'Assets, debts and buffer'},
   steps:{title:'Suggested next steps',note:'Ranked by fixed rules'},
   explore:{title:'Explore with confidence',note:'Approved education'}
@@ -157,30 +158,33 @@ function CashPanel({insights,compose}:Props){
   const bills=billsOf(recurring);
   if(!usable(safe)&&!usable(salary)&&bills.length===0&&!usable(idle)&&!usable(deposit))return <Missing>Cash and bill information is not available yet.</Missing>;
   const days=safe?.values.days_to_payday,payday=shownDate(safe?.values.payday);
-  const fixed=bills.filter(bill=>bill.group==='Bill or subscription'),regular=bills.filter(bill=>bill.group!=='Bill or subscription');
   const billRow=(bill:typeof bills[number])=><li key={bill.label+bill.next}>
     <span><strong>{bill.label}</strong><small>{[bill.cadence,bill.category,bill.next?'next '+bill.next:''].filter(Boolean).join(' · ')}</small></span>
-    <span><b className="tabular">{bill.monthly}</b><small>a month · {bill.discretionary?<Chip tone="warn">{bill.type}</Chip>:bill.type}</small></span>
+    <span><b className="tabular">{bill.monthly}</b><small>a month{bill.cancellable?<> · <Chip tone="neutral">Can cancel</Chip></>:''}</small></span>
   </li>;
   const list=(items:typeof bills)=><>
     {items.length>0&&<ul className="mvp-rows">{items.slice(0,4).map(billRow)}</ul>}
     {items.length>4&&<details className="mvp-more"><summary>Show {items.length-4} more</summary><ul className="mvp-rows">{items.slice(4).map(billRow)}</ul></details>}
   </>;
+  const totals:Record<string,string>={'Bill':shown(recurring,'bills_monthly_total'),'Subscription':shown(recurring,'subscriptions_monthly_total'),'Regular spending':shown(recurring,'regular_monthly_total')};
   return <>
     {usable(safe)&&<Block title="Safe to spend" note={payday?'Until payday, '+payday:'Next 30 days'}>
       {safe.status==='GAP'&&<p className="mvp-alert" role="alert">Projected shortfall before payday</p>}
-      <Waterfall rows={[['','Available balance',shown(safe,'available')],['−','Bills due before payday',shown(safe,'commitments_until_payday')],['−','Card payment due before payday',shown(safe,'card_payment_until_payday')],['−','Goal contributions set aside',shown(safe,'goal_contributions_reserved')],['−','Everyday spending'+(days?' for '+days+' days':''),shown(safe,'everyday_spending_until_payday')],['=','Safe to spend',shown(safe,'headroom_until_payday')]]}/>
+      <Waterfall rows={[['','Available balance',shown(safe,'available')],['−','Bills and subscriptions due before payday',shown(safe,'commitments_until_payday')],['−','Card payment due before payday',shown(safe,'card_payment_until_payday')],['−','Goal contributions set aside',shown(safe,'goal_contributions_reserved')],['−','Everyday spending'+(days?' for '+days+' days':''),shown(safe,'everyday_spending_until_payday')],['=','Safe to spend',shown(safe,'headroom_until_payday')]]}/>
       <Stats items={[['Projected balance in 30 days',shown(safe,'projected_30d_balance')],['Monthly surplus before goals',shown(safe,'monthly_surplus_estimate')],['Emergency buffer',safe.values.buffer_months?safe.values.buffer_months+' months':'']]}/>
-      <p className="mvp-caption">Everyday spending is your 90-day average without bills. Goal savings sit in separate pockets.</p>
+      <p className="mvp-caption">Everyday spending is your 90-day average without bills and subscriptions. Goal savings sit in separate pockets.</p>
       <Ask text="How much can I safely spend this month?" compose={compose}/>
     </Block>}
-    {(usable(recurring)||bills.length>0)&&<Block title="Bills and subscriptions" note={shown(recurring,'bills_monthly_total')?shown(recurring,'bills_monthly_total')+' a month':'Monthly estimates'}>
-      {list(fixed)}
-      {regular.length>0&&<>
-        <header className="mvp-subhead"><h4>Regular spending</h4><small className="tabular">{shown(recurring,'regular_monthly_total')?shown(recurring,'regular_monthly_total')+' a month':''}</small></header>
-        {list(regular)}
-      </>}
-      <p className="mvp-caption">Monthly estimates from 90 days. No payment or cancellation is made here.</p>
+    {(usable(recurring)||bills.length>0)&&<Block title="Recurring payments" note={shown(recurring,'monthly_total')?'About '+shown(recurring,'monthly_total')+' a month':'Monthly estimates'}>
+      {BILL_GROUPS.map(({group,title,note})=>{
+        const items=bills.filter(bill=>bill.group===group);
+        if(items.length===0)return null;
+        return <div className="mvp-bill-group" key={group}>
+          <header className="mvp-subhead"><div><h4>{title}</h4><small>{note}</small></div><small className="tabular">{totals[group]?totals[group]+' a month':''}</small></header>
+          {list(items)}
+        </div>;
+      })}
+      <p className="mvp-caption">Spotted from 90 days of transactions. Nothing is paid or cancelled here: cancel a subscription with the merchant.</p>
       <Ask text="Are there subscriptions or recurring costs I can cut?" compose={compose}/>
     </Block>}
     {usable(salary)&&<Block title={salary.title}>
@@ -225,15 +229,15 @@ function StepsPanel({insights,compose,open}:Props){
   const steps=stepsOf(insights.next_actions);
   if(steps.length===0)return <Missing>Not enough linked information to suggest next steps.</Missing>;
   return <>
-    <ol className="mvp-steps">{steps.map(step=>{
-      const target=PANEL_FOR_TOPIC[step.topic.toLowerCase()];
+    <ol className="mvp-steps">{steps.map((step,index)=>{
+      const target=PANEL_FOR_TOPIC[step.topic.toLowerCase()],topic=STEP_TOPICS[step.topic.toLowerCase()];
       return <li key={step.rank+step.action}>
         <span className="mvp-step-rank" aria-hidden="true">{step.rank}</span>
         <div>
-          {step.topic&&<small className="mvp-topic">{step.topic}</small>}
+          {step.topic&&<small className="mvp-topic">{topic?.label||step.topic}</small>}
           <strong>{step.action}</strong>
           {step.reason&&<p>{step.reason}</p>}
-          {target&&<button type="button" className="mvp-inline" onClick={()=>open(target)}>See the figures<ChevronRight size={14} aria-hidden="true"/></button>}
+          {target&&<button type="button" className="mvp-inline" onClick={()=>open(target,{step,index,total:steps.length})}>{topic?.cta||'See the figures'}<ChevronRight size={14} aria-hidden="true"/></button>}
         </div>
       </li>;
     })}</ol>
@@ -264,7 +268,7 @@ function ExplorePanel({compose,nudges,comparisons,viewProduct}:{compose:Compose;
   </>;
 }
 
-export function PanelView({panel,insights,nudges,comparisons,compose,open,close,viewProduct,titleRef}:Props&{panel:Panel;nudges:RMEnrichedNudge[];comparisons:RMComparison[];close:()=>void;viewProduct:(product:'DEPOSIT'|'SAVINGS')=>void;titleRef:Ref<HTMLHeadingElement>}){
+export function PanelView({panel,focus,insights,nudges,comparisons,compose,open,close,viewProduct,titleRef}:Props&{panel:Panel;focus?:StepFocus;nudges:RMEnrichedNudge[];comparisons:RMComparison[];close:()=>void;viewProduct:(product:'DEPOSIT'|'SAVINGS')=>void;titleRef:Ref<HTMLHeadingElement>}){
   const meta=PANEL_META[panel];
   const props={insights,compose,open};
   return <section className="mvp-panel" aria-labelledby="mvp-panel-title">
@@ -273,6 +277,12 @@ export function PanelView({panel,insights,nudges,comparisons,compose,open,close,
       <div><h2 id="mvp-panel-title" ref={titleRef} tabIndex={-1}>{meta.title}</h2><small>{meta.note}</small></div>
     </header>
     <div className="mvp-panel-body">
+      {focus&&<aside className="mvp-step-banner" aria-label="Why you are seeing this">
+        <small>Next step {focus.index+1} of {focus.total} · {STEP_TOPICS[focus.step.topic.toLowerCase()]?.label||focus.step.topic}</small>
+        <strong>{focus.step.action}</strong>
+        {focus.step.reason&&<p>{focus.step.reason}</p>}
+        <Ask text={`Help me with this step: ${focus.step.action}`} label="Ask the assistant about this step" compose={compose}/>
+      </aside>}
       {panel==='spending'&&<SpendingPanel {...props}/>}
       {panel==='goals'&&<GoalsPanel {...props}/>}
       {panel==='invest'&&<InvestPanel {...props}/>}

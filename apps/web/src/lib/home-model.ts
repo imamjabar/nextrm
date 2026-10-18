@@ -105,10 +105,15 @@ export function holdingsOf(card?:RMInsight):Holding[]{
   return (card.rows||[]).map(row=>({label:row.label||'Holding',kind:row.asset_class||'',value:row.value||'',share:row.share_percent||'',gain:row.gain_loss||'',gainPct:row.gain_loss_percent||'',change30:row.change_30d_percent||'',since:row.holding_since||''}));
 }
 
-export type Bill={label:string;category:string;type:string;group:string;cadence:string;monthly:string;next:string;times:string;discretionary:boolean};
+export type Bill={label:string;category:string;type:string;group:string;cadence:string;monthly:string;next:string;times:string;discretionary:boolean;cancellable:boolean};
+export const BILL_GROUPS=[
+  {group:'Bill',title:'Bills',note:'Payments you are committed to'},
+  {group:'Subscription',title:'Subscriptions',note:'Services you can cancel with the merchant'},
+  {group:'Regular spending',title:'Regular spending',note:'Habits we spotted, such as weekly shopping'}
+] as const;
 export function billsOf(card?:RMInsight):Bill[]{
   if(!usable(card))return [];
-  return (card.rows||[]).map(row=>({label:row.label||'Recurring payment',category:row.category||'',type:row.type||'Recurring',group:row.group||'Bill or subscription',cadence:row.cadence||'',monthly:row.monthly_estimate||row.typical_amount||'',next:shownDate(row.next_expected),times:row.times_90d||'',discretionary:row.type==='Discretionary'}));
+  return (card.rows||[]).map(row=>({label:row.label||'Recurring payment',category:row.category||'',type:row.type||'Recurring',group:row.group||'Bill',cadence:row.cadence||'',monthly:row.monthly_estimate||row.typical_amount||'',next:shownDate(row.next_expected),times:row.times_90d||'',discretionary:row.type==='Discretionary',cancellable:row.cancellable==='true'}));
 }
 
 export type Step={rank:string;topic:string;action:string;reason:string};
@@ -117,7 +122,15 @@ export function stepsOf(card?:RMInsight):Step[]{
   const ranked=(card.rows||[]).slice().sort((a,b)=>(geometry(a.rank)||99)-(geometry(b.rank)||99));
   return ranked.map((row,index)=>({rank:row.rank||String(index+1),topic:row.topic||'',action:row.action||'',reason:row.reason||''}));
 }
-export const PANEL_FOR_TOPIC:Record<string,Panel>={cash:'cash',debt:'worth',buffer:'cash',goal:'goals',spending:'cash',invest:'invest'};
+export const PANEL_FOR_TOPIC:Record<string,Panel>={cash:'cash',debt:'worth',buffer:'cash',goal:'goals',spending:'cash',invest:'explore'};
+export const STEP_TOPICS:Record<string,{label:string;cta:string}>={
+  cash:{label:'Cash flow',cta:'See what is due'},
+  debt:{label:'Credit card',cta:'See the card cost'},
+  buffer:{label:'Emergency buffer',cta:'See your cash plan'},
+  goal:{label:'Goals',cta:'See your goals'},
+  spending:{label:'Spending',cta:'See recurring payments'},
+  invest:{label:'Investing',cta:'Explore guides'}
+};
 
 const DEFAULT_STARTERS=['Help me manage my cash flow','Why has my spending increased?','Explain time deposits'];
 const SERVICE_STARTER='I need help with a banking issue';

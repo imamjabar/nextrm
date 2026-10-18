@@ -5,6 +5,7 @@ import {CustomerInsights} from '@/components/rm/CustomerInsights';
 import {startersOf} from '@/lib/home-model';
 import type {Insights} from '@/lib/home-model';
 import {RMContactSheet} from '@/components/rm/RMContactSheet';
+import {ChatMemoryNote} from '@/components/rm/ChatMemoryNote';
 import {MenuLinks} from '@/components/rm/MenuLinks';
 import {fetchApi} from '@/lib/api';
 import {Notice} from '@/components/ui/Workspace';
@@ -18,7 +19,7 @@ function BankingPhone({personId}:{personId:string}){
   const sessions=useRM<RMChatSessions>('/v1/rm/chat/'+personId+'/sessions'+(historyCursor?'?cursor='+encodeURIComponent(historyCursor):''));
   const [earlierTurns,setEarlier]=useState<RMTurn[]>([]),[earlierCursor,setEarlierCursor]=useState<string|null|undefined>(undefined);
   const newKey=useRef(''),drafts=useRef(new Map<string,string>());
-  const [creating,setCreating]=useState(false);
+  const [creating,setCreating]=useState(false),[fresh,setFresh]=useState<string[]>([]);
   const [view,setView]=useState<View>('home'),[input,setInput]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[unknown,setUnknown]=useState(false),[contactOpen,setContactOpen]=useState(false),[starters,setStarters]=useState(()=>startersOf({}));
   const takeInsights=useCallback((insights:Insights)=>{const next=startersOf(insights);setStarters(current=>current.join('\n')===next.join('\n')?current:next);},[]);
   const messages=useRef<HTMLDivElement>(null),composer=useRef<HTMLTextAreaElement>(null),request=useRef<RMChatRequest|null>(null),focusNext=useRef(false);
@@ -33,7 +34,7 @@ function BankingPhone({personId}:{personId:string}){
   useEffect(()=>{const field=composer.current;if(!field||!field.style)return;field.style.height='auto';field.style.height=Math.min(field.scrollHeight,116)+'px';},[input,view]);
   const send=async(text=input)=>{
     if(!data||!selected||!text.trim()||busy||pending)return;setBusy(true);setError('');setInput(text);
-    if(!request.current||request.current.message!==text)request.current={message:text,base_version:data.version,request_key:requestKey(),session_id:selected};
+    if(!request.current||request.current.message!==text)request.current={message:text,base_version:data.version,request_key:requestKey(),session_id:selected,use_memory:!fresh.includes(selected)};
     try{
       const turn=await fetchApi<RMTurn>(`/v1/rm/chat/${personId}/turns`,{method:'POST',body:JSON.stringify(request.current)});
       if(turn.status==='COMPLETED'){setInput('');request.current=null;setUnknown(false);}
@@ -48,7 +49,7 @@ function BankingPhone({personId}:{personId:string}){
     {error&&<Notice tone="bad">{error}<button className="text-link" onClick={check}>Check current chat status</button></Notice>}<RequestState data={data} error={q.error} retry={q.refresh}/>{data&&<>
     <div className="mvp-chat-view" hidden={view!=='chat'}><div className="mvp-chat-tools"><button disabled={busy||!!pending||creating} onClick={()=>createChat()}><Plus size={15}/>New chat</button><button onClick={()=>{setView('history');sessions.refresh();}}><History size={15}/>History</button><span>{sessions.data?.sessions.find(s=>s.id===selected)?.title||'New conversation'}</span></div>
       <div className="mvp-messages" ref={messages} role="log" aria-label="Conversation with the banking AI assistant" aria-live="polite" aria-relevant="additions text">
-        {!data.turns.length&&<section className="mvp-chat-welcome"><span className="mvp-assistant-symbol"><Sparkles size={20} aria-hidden="true"/></span><h1>Hello, {data.party.name.split(' ')[0]}. How can I help?</h1><p>Ask about your money, goals or banking services.</p><div className="mvp-starters">{starters.map(text=><button key={text} disabled={busy} onClick={()=>compose(text)}><span>{text}</span><ArrowUpRight size={14} aria-hidden="true"/></button>)}</div></section>}
+        {!data.turns.length&&<section className="mvp-chat-welcome"><span className="mvp-assistant-symbol"><Sparkles size={20} aria-hidden="true"/></span><h1>Hello, {data.party.name.split(' ')[0]}. How can I help?</h1><p>Ask about your money, goals or banking services.</p>{selected&&<ChatMemoryNote key={selected} personId={personId} sessionId={selected} enabled={!fresh.includes(selected)} toggle={()=>setFresh(current=>current.includes(selected)?current.filter(id=>id!==selected):[...current,selected])} ask={compose}/>}<div className="mvp-starters">{starters.map(text=><button key={text} disabled={busy} onClick={()=>compose(text)}><span>{text}</span><ArrowUpRight size={14} aria-hidden="true"/></button>)}</div></section>}
         {(earlierCursor===undefined?data.older_cursor:earlierCursor)&&<button className="text-link" onClick={async()=>{try{const earlier=await fetchApi<RMConversation>(`/v1/rm/chat/${personId}/sessions/${selected}?before=${encodeURIComponent((earlierCursor===undefined?data.older_cursor:earlierCursor)!)}`);setEarlier(current=>[...earlier.turns,...current]);setEarlierCursor(earlier.older_cursor||null);}catch(e:any){setError(e.message);}}}>Earlier messages</button>}{[...earlierTurns,...data.turns].map((turn,index)=><div className="mvp-turn" key={turn.id}><div className="mvp-customer-bubble"><p>{turn.message}</p></div><div className="mvp-assistant-card"><div className="mvp-assistant-header"><span><Sparkles size={14} aria-hidden="true"/>AI assistant</span>{turn.status==='COMPLETED'&&<span className="mvp-assistant-tag">{turn.mode==='LIVE'?'Gemini · live':'Simulated'}</span>}</div><p className="answer-text">{turn.answer||'Preparing your answer…'}</p>{turn.sources.length>0&&<details className="mvp-answer-evidence"><summary>Sources · {turn.sources.length}</summary>{turn.sources.map(source=><section key={source.id}><strong>{source.title}</strong><p>{source.kind.endsWith('FINANCIAL_SUMMARY')?'Based on your bank’s validated financial snapshot. Home shows the amounts, periods and how they add up.':source.content}</p></section>)}</details>}{turn.route==='LOAN'&&turn.status==='COMPLETED'&&<details className="mvp-answer-evidence"><summary>Continue in your bank</summary><MenuLinks route="LOAN" compact/></details>}{index===earlierTurns.length+data.turns.length-1&&turn.status==='COMPLETED'&&!!turn.suggestions?.length&&<div className="mvp-followups" aria-label="Suggested next questions">{turn.suggestions.map(text=><button key={text} type="button" disabled={busy||!!pending||!data.provider_ready} onClick={()=>send(text)}>{text}<ArrowUpRight size={13}/></button>)}</div>}{index===earlierTurns.length+data.turns.length-1&&turn.status==='COMPLETED'&&(!turn.governance||((turn.governance.steps as string[])||[]).includes('OFFER_RM_CONTACT'))&&<button className="mvp-human-contact" onClick={contact}><UserRound size={15}/> Need a person? Contact your RM <ArrowUpRight size={14}/></button>}</div></div>)}
         {busy&&<div className="mvp-thinking" role="status"><span/><span/><span/><small>Preparing your answer</small></div>}
       </div>

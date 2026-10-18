@@ -1,16 +1,17 @@
 "use client";
 import {useEffect,useRef,useState} from 'react';
 import type {ReactNode} from 'react';
-import {Activity,ChevronRight,Compass,Lightbulb,PieChart,Scale,Target,TrendingUp,Wallet} from 'lucide-react';
+import {Activity,ChevronRight,Compass,PieChart,Repeat,Scale,Target,TrendingUp} from 'lucide-react';
 import {useRM,RequestState} from './shared';
 import {dateLabel} from '@/lib/presentation';
-import {allocationOf,direction,geometry,goalsOf,indexInsights,marketOf,pacingOf,shown,shownDate,signed,sparkOf,spendingSlices,stepsOf,usable} from '@/lib/home-model';
+import {allocationOf,direction,geometry,goalsOf,indexInsights,marketOf,pacingOf,PANEL_FOR_TOPIC,shown,shownDate,signed,sparkOf,spendingSlices,STEP_TOPICS,stepsOf,usable} from '@/lib/home-model';
 import type {Insights,Panel} from '@/lib/home-model';
 import type {RMEngagementFeed,RMEnrichedNudge} from '@/lib/rm.generated';
 import {Progress,Sparkline,StackBar,TickBars} from './HomeCharts';
 import {PanelView} from './HomePanels';
+import type {StepFocus} from './HomePanels';
 
-type Open=(panel:Panel)=>void;
+type Open=(panel:Panel,focus?:StepFocus)=>void;
 type TileProps={insights:Insights;open:Open};
 
 const SPARK_WIDTH=104,SPARK_HEIGHT=40;
@@ -27,7 +28,7 @@ function Hero({insights}:{insights:Insights}){
     ?[{name:days?`Safe to spend · ${days} days to payday`:'Safe to spend until payday',value:shown(safe,'headroom_until_payday'),color:'var(--chart-1)',weight:pace.headroom},
       {name:'Everyday spending until payday',value:shown(safe,'everyday_spending_until_payday'),color:'var(--chart-2)',weight:pace.everyday},
       {name:'Goal contributions set aside',value:shown(safe,'goal_contributions_reserved'),color:'var(--chart-3)',weight:pace.goals},
-      {name:'Bills due before payday',value:shown(safe,'commitments_until_payday'),color:'var(--chart-4)',weight:pace.bills},
+      {name:'Bills and subscriptions due',value:shown(safe,'commitments_until_payday'),color:'var(--chart-4)',weight:pace.bills},
       {name:'Card payment due before payday',value:shown(safe,'card_payment_until_payday'),color:'var(--chart-5)',weight:pace.card}]
     :[{name:'Free after commitments',value:shown(cash,'difference'),color:'var(--chart-1)',weight:pace.headroom},{name:'Commitments in 14 days',value:shown(cash,'commitments'),color:'var(--chart-4)',weight:pace.bills}];
   const visible=parts.filter((part,index)=>part.value&&(index===0||part.weight>0));
@@ -54,6 +55,10 @@ function Tile({panel,icon,title,aside,label,open,children}:{panel:Panel;icon:Rea
   </button>;
 }
 
+function Hint({children}:{children:ReactNode}){
+  return <small className="mvp-tile-hint">{children}</small>;
+}
+
 function EmptyTile({icon,title,message}:{icon:ReactNode;title:string;message:string}){
   return <div className="mvp-tile" data-empty="true"><span className="mvp-tile-head"><span>{icon}{title}</span></span><span className="mvp-tile-note">{message}</span></div>;
 }
@@ -67,17 +72,19 @@ function SpendingTile({insights,open}:TileProps){
   const breakdown=insights.spending_breakdown,change=insights.spending,icon=<PieChart size={14} aria-hidden="true"/>;
   if(usable(breakdown)){
     const rise=geometry(breakdown.values.biggest_increase_percent),category=breakdown.values.biggest_increase_category;
-    return <Tile panel="spending" icon={icon} title="Spending" aside={<small>30 days</small>} open={open} label={`Spending: ${shown(breakdown,'total_spend')} in the last 30 days. Open details.`}>
+    return <Tile panel="spending" icon={icon} title="Spending" open={open} label={`Spending: ${shown(breakdown,'total_spend')} in the last 30 days. Open details.`}>
       <span className="mvp-tile-figure tabular">{shown(breakdown,'total_spend')}</span>
+      <Hint>spent in the last 30 days</Hint>
       <More rows={spendingSlices(breakdown).slice(0,3).map(slice=>[slice.label,slice.share,slice.color])}/>
       <StackBar parts={spendingSlices(breakdown)} label="Spending by category" height={8}/>
-      {rise!==null&&rise>0&&category?<span className="mvp-chip" data-tone="warn">{category} {signed(shown(breakdown,'biggest_increase_percent'))}</span>:<span className="mvp-tile-note">Largest: {breakdown.values.top_category||'not available'}</span>}
+      {rise!==null&&rise>0&&category?<span className="mvp-chip" data-tone="warn">{category} up {shown(breakdown,'biggest_increase_percent')}</span>:<span className="mvp-tile-note">Largest: {breakdown.values.top_category||'not available'}</span>}
     </Tile>;
   }
   if(usable(change)){
     const risePercent=signed(shown(change,'change_percent'));
-    return <Tile panel="spending" icon={icon} title="Spending" aside={<small>30 days</small>} open={open} label={`${change.title}: ${shown(change,'current_spend')}. Open details.`}>
+    return <Tile panel="spending" icon={icon} title="Spending" open={open} label={`${change.title}: ${shown(change,'current_spend')}. Open details.`}>
       <span className="mvp-tile-figure tabular">{shown(change,'current_spend')}</span>
+      <Hint>spent in the last 30 days</Hint>
       {risePercent&&<span className="mvp-chip" data-tone={SPEND_TONE[direction(change.values.change_percent)]}>{change.title.replace(/ spending$/i,'')} {risePercent}</span>}
     </Tile>;
   }
@@ -87,7 +94,8 @@ function SpendingTile({insights,open}:TileProps){
 function GoalsTile({insights,open}:TileProps){
   const goals=goalsOf(insights.goal_progress),icon=<Target size={14} aria-hidden="true"/>;
   if(goals.length===0)return <EmptyTile icon={icon} title="Goals" message="No goal recorded."/>;
-  return <Tile panel="goals" icon={icon} title="Goals" aside={<small>{goals.length} {goals.length===1?'goal':'goals'}</small>} open={open} label={'Goals: '+goals.map(goal=>`${goal.label}, ${goal.pctText}, ${goal.toneText}`).join('; ')+'. Open details.'}>
+  return <Tile panel="goals" icon={icon} title="Goals" open={open} label={'Goals: '+goals.map(goal=>`${goal.label}, ${goal.pctText}, ${goal.toneText}`).join('; ')+'. Open details.'}>
+    <Hint>progress toward {goals.length} {goals.length===1?'goal':'goals'}</Hint>
     {goals.slice(0,2).map(goal=><span className="mvp-mini-goal" key={goal.label}>
       <span><b>{goal.label}</b><i className="tabular">{goal.pctText}</i></span>
       <Progress decorative pct={goal.pct} tone={goal.tone} label={goal.label+' progress'}/>
@@ -103,9 +111,10 @@ function InvestTile({insights,open}:TileProps){
   const shares=allocationOf(card);
   return <Tile panel="invest" icon={icon} title="Investments" open={open} label={`Investments: portfolio value ${shown(card,'total_value')}. Open details.`}>
     <span className="mvp-tile-figure tabular">{shown(card,'total_value')}</span>
+    <Hint>value of your holdings</Hint>
     <span className="mvp-tile-chips">
-      {card.values.gain_loss_percent!==undefined&&<span className="mvp-chip" data-tone={DIRECTION_TONE[direction(card.values.gain_loss_percent)]}>{signed(shown(card,'gain_loss_percent'))}</span>}
-      {card.values.change_30d_percent!==undefined&&<span className="mvp-chip" data-tone={DIRECTION_TONE[direction(card.values.change_30d_percent)]}>{signed(shown(card,'change_30d_percent'))} 30d</span>}
+      {card.values.gain_loss_percent!==undefined&&<span className="mvp-chip" data-tone={DIRECTION_TONE[direction(card.values.gain_loss_percent)]}>{signed(shown(card,'gain_loss_percent'))} overall</span>}
+      {card.values.change_30d_percent!==undefined&&<span className="mvp-chip" data-tone={DIRECTION_TONE[direction(card.values.change_30d_percent)]}>{signed(shown(card,'change_30d_percent'))} in 30 days</span>}
     </span>
     {shares.length>0&&<More rows={shares.map(share=>[share.label,share.text,share.color])}/>}
     {shares.length>0&&<StackBar parts={shares} height={6} label={'Allocation: '+shares.map(share=>share.label+' '+share.text).join(', ')}/>}
@@ -116,22 +125,49 @@ function MarketTile({insights,open}:TileProps){
   const market=marketOf(insights.market_insights),icon=<Activity size={14} aria-hidden="true"/>;
   if(!market)return <EmptyTile icon={icon} title="Market" message="Not available yet."/>;
   const head=market.headline,movers=market.ticks.filter(tick=>tick.kind!=='INDEX').slice(0,5);
-  return <Tile panel="market" icon={icon} title="Market" aside={<small>{market.open?'Open':'Close'}</small>} open={open} label={`Market: ${head?head.symbol+' '+head.changeText:'update'}. Open details.`}>
+  return <Tile panel="market" icon={icon} title="Market" aside={<small>{market.open?'Open':'Closed'}</small>} open={open} label={`Market: ${head?head.symbol+' '+head.changeText:'update'}. Open details.`}>
     {head&&<span className="mvp-tile-figure">{head.symbol} <span className="mvp-delta" data-direction={head.direction}>{head.changeText}</span></span>}
+    <Hint>{head?.symbol==='IHSG'?'Jakarta stock index today':'Market today'}</Hint>
     {market.asOf&&<small className="mvp-tile-more">{market.asOf} · sample data</small>}
     {movers.length>0&&<TickBars ticks={movers}/>}
   </Tile>;
 }
 
-function Lead({insights,nudges,open}:TileProps&{nudges:RMEnrichedNudge[]}){
-  const step=stepsOf(insights.next_actions)[0];
-  const lead=step?{caption:'Next step',text:step.action,panel:'steps' as Panel}:nudges[0]?{caption:'For you',text:nudges[0].title,panel:'explore' as Panel}:null;
-  if(!lead)return null;
-  return <button type="button" className="mvp-lead" data-open={lead.panel} onClick={()=>open(lead.panel)}>
-    <Lightbulb size={16} aria-hidden="true"/>
-    <span><small>{lead.caption}</small><strong>{lead.text}</strong></span>
-    <ChevronRight size={16} aria-hidden="true"/>
-  </button>;
+function NextSteps({insights,nudges,open}:TileProps&{nudges:RMEnrichedNudge[]}){
+  const steps=stepsOf(insights.next_actions),track=useRef<HTMLOListElement>(null);
+  const [current,setCurrent]=useState(0);
+  if(steps.length===0){
+    const nudge=nudges[0];
+    if(!nudge)return null;
+    return <section className="mvp-next" aria-label="For you">
+      <button type="button" className="mvp-step-card" data-open="explore" onClick={()=>open('explore')}>
+        <span className="mvp-step-meta"><span className="mvp-topic">For you</span></span>
+        <strong>{nudge.title}</strong>
+        <span className="mvp-step-cta">Explore<ChevronRight size={14} aria-hidden="true"/></span>
+      </button>
+    </section>;
+  }
+  const settle=()=>{const list=track.current;if(!list||!list.firstElementChild)return;const width=(list.firstElementChild as HTMLElement).offsetWidth+8;setCurrent(Math.min(steps.length-1,Math.max(0,Math.round(list.scrollLeft/width))));};
+  return <section className="mvp-next" aria-labelledby="mvp-next-title">
+    <header className="mvp-section-head">
+      <h2 id="mvp-next-title">Next steps for you</h2>
+      <button type="button" className="mvp-see-all" data-open="steps" onClick={()=>open('steps')}>See all {steps.length}</button>
+    </header>
+    <ol className="mvp-carousel" ref={track} onScroll={settle}>
+      {steps.map((step,index)=>{
+        const topic=STEP_TOPICS[step.topic.toLowerCase()],target=PANEL_FOR_TOPIC[step.topic.toLowerCase()]||'steps';
+        return <li key={step.rank+step.action}>
+          <button type="button" className="mvp-step-card" data-step={step.rank} aria-label={`Step ${index+1} of ${steps.length}: ${step.action}. ${step.reason} ${topic?topic.cta:'See details'}.`} onClick={()=>open(target,{step,index,total:steps.length})}>
+            <span className="mvp-step-meta"><span className="mvp-topic">{topic?.label||step.topic}</span><small className="tabular">{index+1} of {steps.length}</small></span>
+            <strong>{step.action}</strong>
+            {step.reason&&<span className="mvp-step-reason">{step.reason}</span>}
+            <span className="mvp-step-cta">{topic?.cta||'See details'}<ChevronRight size={14} aria-hidden="true"/></span>
+          </button>
+        </li>;
+      })}
+    </ol>
+    {steps.length>1&&<div className="mvp-dots" aria-hidden="true">{steps.map((step,index)=><i key={step.rank} data-on={index===current||undefined}/>)}</div>}
+  </section>;
 }
 
 function Shortcut({panel,icon,title,figure,open}:{panel:Panel;icon:ReactNode;title:string;figure:string;open:Open}){
@@ -143,32 +179,35 @@ function Shortcut({panel,icon,title,figure,open}:{panel:Panel;icon:ReactNode;tit
 
 export function CustomerInsights({personId,active,compose,viewProduct,onInsights}:{personId:string;active:boolean;compose:(text:string)=>void;viewProduct:(product:'DEPOSIT'|'SAVINGS')=>void;onInsights?:(insights:Insights)=>void}){
   const q=useRM<RMEngagementFeed>(`/v1/rm/chat/${personId}/engagement`),prior=useRef(active);
-  const [panel,setPanel]=useState<Panel|null>(null);
-  const root=useRef<HTMLElement>(null),title=useRef<HTMLHeadingElement>(null),origin=useRef<Panel|null>(null);
+  const [view,setView]=useState<{panel:Panel;focus?:StepFocus}|null>(null);
+  const root=useRef<HTMLElement>(null),title=useRef<HTMLHeadingElement>(null),origin=useRef('');
   useEffect(()=>{if(active&&!prior.current)q.refresh();prior.current=active;},[active,q.refresh]);
   useEffect(()=>{if(q.data)onInsights?.(indexInsights(q.data.insights));},[q.data,onInsights]);
   useEffect(()=>{
-    if(panel)title.current?.focus({preventScroll:true});
-    else if(origin.current)root.current?.querySelector<HTMLElement>(`[data-open="${origin.current}"]`)?.focus({preventScroll:true});
-  },[panel]);
-  const open:Open=next=>{origin.current=next;setPanel(next);};
+    if(view)title.current?.focus({preventScroll:true});
+    else if(origin.current)root.current?.querySelector<HTMLElement>(origin.current)?.focus({preventScroll:true});
+  },[view]);
+  const open:Open=(panel,focus)=>{origin.current=focus?`[data-step="${focus.step.rank}"]`:`[data-open="${panel}"]`;setView({panel,focus});};
+  const close=()=>setView(null);
   const insights=indexInsights(q.data?q.data.insights:[]),nudges=q.data?q.data.nudges:[];
-  return <section className="mvp-insights" ref={root} onKeyDown={event=>{if(panel&&event.key==='Escape'){event.stopPropagation();setPanel(null);}}}>
+  const committed=shown(insights.recurring,'committed_monthly_total')||shown(insights.recurring,'bills_monthly_total');
+  return <section className="mvp-insights" ref={root} onKeyDown={event=>{if(view&&event.key==='Escape'){event.stopPropagation();close();}}}>
     <RequestState data={q.data} error={q.error} retry={q.refresh}/>
-    {q.data&&(panel
-      ?<PanelView panel={panel} insights={insights} nudges={nudges} comparisons={q.data.comparisons} compose={compose} open={open} close={()=>setPanel(null)} viewProduct={viewProduct} titleRef={title}/>
+    {q.data&&(view
+      ?<PanelView panel={view.panel} focus={view.focus} insights={insights} nudges={nudges} comparisons={q.data.comparisons} compose={compose} open={open} close={close} viewProduct={viewProduct} titleRef={title}/>
       :<div className="mvp-home">
         <h1 className="sr-only">Your money overview</h1>
         <Hero insights={insights}/>
+        <NextSteps insights={insights} nudges={nudges} open={open}/>
+        <h2 className="mvp-section-title">Your money at a glance</h2>
         <div className="mvp-tiles">
           <SpendingTile insights={insights} open={open}/>
           <GoalsTile insights={insights} open={open}/>
           <InvestTile insights={insights} open={open}/>
           <MarketTile insights={insights} open={open}/>
         </div>
-        <Lead insights={insights} nudges={nudges} open={open}/>
         <div className="mvp-shortcuts">
-          <Shortcut panel="cash" icon={<Wallet size={16} aria-hidden="true"/>} title="Bills" figure={shown(insights.recurring,'bills_monthly_total')?shown(insights.recurring,'bills_monthly_total')+'/mo':''} open={open}/>
+          <Shortcut panel="cash" icon={<Repeat size={16} aria-hidden="true"/>} title="Recurring" figure={committed?committed+' a month':''} open={open}/>
           <Shortcut panel="worth" icon={<Scale size={16} aria-hidden="true"/>} title="Net worth" figure={shown(insights.net_worth,'net_worth')} open={open}/>
           <Shortcut panel="explore" icon={<Compass size={16} aria-hidden="true"/>} title="Explore" figure="Products, guides" open={open}/>
         </div>

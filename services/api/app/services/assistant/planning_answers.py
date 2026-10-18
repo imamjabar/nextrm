@@ -83,10 +83,15 @@ def build(intent: str, financial: list, kb: dict) -> Optional[tuple[str, list[st
                 + ADVICE_NOTE, ['debt_vs_save_invest', 'suitability_process'])
     if intent == 'recurring' and (c := card(financial, 'recurring')):
         v = display_values(c)
-        rows = [r for r in c['rows'] if r.get('type') == 'Discretionary'] or c['rows'][:3]
-        lines = [f"- {r['label']} ({r['category']}): about {r['monthly_estimate']} a month" for r in rows[:4]]
-        return (f"About {v['monthly_total']} a month repeats: {v['bills_count']} bills and subscriptions come to {v['bills_monthly_total']} and {v['regular_count']} regular merchants to {v['regular_monthly_total']}. The ones you control most are:\n" + '\n'.join(lines)
-                + "\n\nI can't cancel or change anything; do that with the merchant or in the bank's menus.", ['spending_control'])
+        subs = [r for r in c['rows'] if r.get('group') == 'Subscription']
+        regular = [r for r in c['rows'] if r.get('group') == 'Regular spending' and r.get('type') == 'Discretionary'] or [r for r in c['rows'] if r.get('group') == 'Regular spending'][:3]
+        line = lambda r: f"- {r['label']} ({r['category']}, {r.get('cadence', '').lower() or 'repeating'}): about {r['monthly_estimate']} a month"
+        blocks = [f"About {v['monthly_total']} a month repeats. Bills you need to pay come to {v['bills_monthly_total']} ({v['bills_count']}); compare providers or plans rather than stopping them."]
+        if subs:
+            blocks.append(f"Subscriptions you can cancel with the merchant, {v['subscriptions_monthly_total']} a month:\n" + '\n'.join(line(r) for r in subs[:4]))
+        if regular:
+            blocks.append(f"Regular spending habits, {v['regular_monthly_total']} a month in total. These are patterns, not contracts; cutting how often helps most:\n" + '\n'.join(line(r) for r in regular[:4]))
+        return ('\n\n'.join(blocks) + "\n\nI can't cancel or change anything; do that with the merchant or in the bank's menus.", ['spending_control'])
     if intent == 'health' and (c := card(financial, 'net_worth')):
         v = display_values(c)
         move = f" Your accounts and investments changed {v['assets_change_30d']} ({v['assets_change_30d_percent']}) over 30 days." if 'assets_change_30d' in v else ''

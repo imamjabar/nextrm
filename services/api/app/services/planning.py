@@ -15,6 +15,7 @@ from .money_display import date_text, money_text
 
 PLAN_METHOD = 'PLAN-1: Deterministic Decimal planning calculations over linked bank records; the model performs no arithmetic.'
 ZERO = Decimal('0.00')
+COMMITTED_KINDS = frozenset({'BILL', 'SUBSCRIPTION'})
 HUNDRED = Decimal('100')
 MONTH_DAYS = Decimal('30.4375')
 BUFFER_TARGET_MONTHS = Decimal('3')
@@ -173,7 +174,7 @@ def safe_to_spend_card(features: dict[str, Any], source: dict, cur: str) -> dict
     payday = next_payday(as_of_date, features['salary_day']) if features['salary_detected'] and features['salary_day'] else None
     horizon = payday or as_of_date + timedelta(days=30)
     days = (horizon - as_of_date).days
-    bills = [b for b in features['recurring_bills'] if b['kind'] == 'BILL']
+    bills = [b for b in features['recurring_bills'] if b['kind'] in COMMITTED_KINDS]
     bills_due = sum((b['amount'] for b in bills if as_of_date <= b['next_expected_date'] <= horizon), ZERO)
     facts = features['planning']
     card_due = sum((c['minimum'] for c in facts['cards'] if c['minimum'] and c['due_day'] and next_payday(as_of_date, c['due_day']) <= horizon), ZERO)

@@ -103,12 +103,23 @@ export interface RMCategoryCorrection {
   source_hash: string;
   category: string;
 }
+export interface RMChatMemory {
+  topics: Array<string>;
+  items: Array<RMChatMemoryItem>;
+}
+export interface RMChatMemoryItem {
+  session_id: string;
+  title: string;
+  date: string;
+  message: string;
+}
 export interface RMChatRequest {
   message: string;
   base_version: number;
   request_key: string;
   share_with_rm?: boolean | null;
   session_id?: string | null;
+  use_memory?: boolean;
 }
 export interface RMChatSession {
   id: string;

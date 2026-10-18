@@ -28,7 +28,7 @@ def test_new_sessions_have_independent_messages_and_context_and_persist():
  a=session();b=session();assert a['id']!=b['id']
  assert send(a,'How does a time deposit work?').json()['route']=='DEPOSIT'
  assert send(a,'Tell me more').json()['route']=='DEPOSIT'
- assert send(b,'Tell me more').json()['route']=='CLARIFY'
+ assert send(b,'Tell me more',use_memory=False).json()['route']=='CLARIFY'
  first=c.get('/v1/rm/chat/'+pid()+'/sessions/'+a['id'],headers=h()).json();second=c.get('/v1/rm/chat/'+pid()+'/sessions/'+b['id'],headers=h()).json()
  assert len(first['turns'])==2 and len(second['turns'])==1
  assert c.get('/v1/rm/chat/'+pid()+'/sessions',headers=h()).json()['sessions'][0]['turn_count']>=1

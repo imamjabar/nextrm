@@ -18,6 +18,7 @@ MONEY_KEYS = frozenset({
     'total_value', 'total_cost', 'gain_loss', 'change_30d',
     'assets_total', 'liquid_assets', 'deposit_assets', 'investment_assets', 'liabilities_total', 'net_worth', 'assets_change_30d',
     'discretionary_total', 'essential_total', 'variable_total', 'monthly_total', 'bills_monthly_total', 'regular_monthly_total',
+    'subscriptions_monthly_total', 'committed_monthly_total',
     'everyday_spending_until_payday', 'goal_contributions_reserved', 'card_payment_until_payday', 'goal_savings',
 })
 DATE_KEYS = frozenset({'maturity_date', 'target_date', 'payday', 'as_of'})

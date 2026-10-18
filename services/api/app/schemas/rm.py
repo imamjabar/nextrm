@@ -35,7 +35,7 @@ class RMIdentityReview(StrictRM):
 class RMPreference(StrictRM):
     base_version:int=Field(ge=1);commercial_allowed:bool;reason:str=Field(min_length=3,max_length=600)
 class RMChatRequest(StrictRM):
-    message:str=Field(min_length=1,max_length=1500);base_version:int=Field(ge=1);request_key:str=Field(min_length=8,max_length=100);share_with_rm:bool|None=None;session_id:str|None=None
+    message:str=Field(min_length=1,max_length=1500);base_version:int=Field(ge=1);request_key:str=Field(min_length=8,max_length=100);share_with_rm:bool|None=None;session_id:str|None=None;use_memory:bool=True
 class RMClaim(BaseModel):
     text:str;source_id:str;supported:bool
 class RMTool(BaseModel):
@@ -212,6 +212,10 @@ class RMChatSession(BaseModel):
     id:str;title:str;version:int;created_at:str;updated_at:str;turn_count:int;legacy:bool=False
 class RMChatSessions(BaseModel):
     sessions:list[RMChatSession];next_cursor:str|None
+class RMChatMemoryItem(BaseModel):
+    session_id:str;title:str;date:str;message:str
+class RMChatMemory(BaseModel):
+    topics:list[str];items:list[RMChatMemoryItem]
 
 class RMAIBriefTalkingPoint(BaseModel):
     text:str

@@ -112,7 +112,7 @@ const panels=[
   ['spending',['Where your money went','IDR 2,400,000'],['Where is my money going and how can I spend less?']],
   ['goals',['Your goals','IDR 30,000,000'],['Am I on track for my goals?']],
   ['invest',['Investments','Snapshot as of 15 Oct 2026. Information, not advice.'],['How are my investments doing?','Why did my fund drop?']],
-  ['cash',['Safe to spend','Bills and subscriptions','Gym'],['How much can I safely spend this month?','Are there subscriptions or recurring costs I can cut?']],
+  ['cash',['Safe to spend','Recurring payments','Gym'],['How much can I safely spend this month?','Are there subscriptions or recurring costs I can cut?']],
   ['worth',['Net worth and financial health','Credit card cost'],['How is my overall financial health?','Should I pay down my credit card or save more?']],
   ['steps',['Suggested next steps','Pay high-interest card first'],['What should I do next to improve my finances?']]
 ];
@@ -135,7 +135,12 @@ for(const [panel,texts,questions] of panels){
   await closePanel();
   assert.ok(labelText(planningTree.root).includes('IDR 6,200,000'),`closing ${panel} returns to the overview`);
 }
-await openPanel('steps');await click(planningTree,'See the figures');
+await openPanel('steps');await click(planningTree,'See the card cost');
 assert.ok(labelText(planningTree.root).includes('Credit card cost'));
+assert.ok(labelText(planningTree.root).includes('Next step 1 of 1'),'a step opened from the list explains why the panel is shown');
+await closePanel();
+await act(async()=>planningTree.root.findAll(n=>n.type==='button'&&n.props['data-step']==='1')[0].props.onClick());
+const stepView=labelText(planningTree.root);
+assert.ok(stepView.includes('Credit card cost')&&stepView.includes('Pay high-interest card first'),'one tap on a next-step card opens its own figures with the step explained');
 await act(async()=>planningTree.unmount());
 console.log('PASS Home overview and in-place panels: figures, progress bar accessibility, disclosure, panel navigation and compose questions');
