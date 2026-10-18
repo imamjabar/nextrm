@@ -119,6 +119,15 @@ A daylight spatial workspace designed for proactive candidate review:
   - Workload matrix configuring dedicated customer book caps, active shared-case limits, and shared-pool participation per RM.
   - Customer coverage re-assignment tool supporting dedicated, shared, and digital-first relationship tiers.
 
+### 6. Staff Assistant Panel (RM Copilot and AI Quality Analyst)
+A right-side panel (`clamp(340px, 27vw, 400px)`, sticky, full viewport height) beside the record in view, so it never covers the work. Open by default at 1200px and wider; narrower screens get an `Ask copilot` launcher that opens it as a right sheet. `/` opens and focuses it; `Esc` closes it and returns focus to the launcher.
+- **Header:** what the answer can use, in words (`Dina Rahma · assigned to you`, `AI quality · metadata only`), the record version, and an access line with the `Gemini` or `Simulated` tag.
+- **Empty state:** `Ask about {subject}`, the record count and up to three starters built from the open record (open needs, contact permission, overdue follow-ups, latest run).
+- **Answer:** the direct answer first, then up to four points. Each point carries an evidence tag (`Customer said`, `Observed`, `Your note`, `Recorded activity`, `NextRM record`, `Bank policy`, `Measured`) and record chips; a source chip expands the original excerpt in place. `AI inference` points use a dashed outline and secondary italic text so they never read as fact.
+- **Actions:** at most one per answer (`Insert into note`, `Prepare follow-up`, `Open draft`, `Open run`, `Inspect trace`, `Run reference evaluation`, `Open governance`). Each opens the existing form or control, pre-filled; the person confirms. An unavailable action stays visible, disabled, with its reason (for example restricted commercial contact).
+- **States:** pending (`Reading the records in scope…` within the same frame), answer withheld (failed evidence checks), Gemini unavailable (no simulated substitute), outside your access, and record changed (`Reload record`). Each names what happened and the next step.
+- **Footer:** `AI can make mistakes. Always check important info.`
+
 ---
 
 ## 3. Component and State Interaction Rules

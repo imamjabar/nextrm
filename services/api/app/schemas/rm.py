@@ -82,6 +82,26 @@ class RMHealthItem(BaseModel):
     name:str;status:str;detail:str;checked_at:str
 class RMQuality(BaseModel):
     provider:str;provider_ready:bool;model_mode:str;turn_count:int;error_count:int;p50_ms:int|None;p95_ms:int|None;metrics:list[RMMetric];traces:list[RMTrace];runs:list[RMEvalRun];health:list[RMHealthItem];content_access:bool;method_note:str
+    metrics_run_id:str|None=None
+
+class RMCopilotHistoryItem(StrictRM):
+    question:str=Field(min_length=1,max_length=1500);answer:str=Field(default='',max_length=3000)
+class RMCopilotRequest(StrictRM):
+    message:str=Field(min_length=1,max_length=1500)
+    party_id:str|None=None;run_id:str|None=None;base_version:int|None=Field(default=None,ge=1)
+    history:list[RMCopilotHistoryItem]=Field(default_factory=list,max_length=6)
+class RMCopilotRef(BaseModel):
+    id:str;label:str;evidence:str;record_type:str;record_id:str|None=None;href:str|None=None;source:RMSource|None=None
+class RMCopilotPoint(BaseModel):
+    text:str;evidence:str;evidence_label:str;refs:list[str]
+class RMCopilotAction(BaseModel):
+    kind:str;label:str;available:bool;reason:str|None=None;text:str|None=None;record_type:str|None=None;record_id:str|None=None;href:str|None=None
+class RMCopilotContext(BaseModel):
+    surface:Literal['RM','QUALITY'];scope:Literal['PARTY','BOOK','QUALITY'];scope_label:str;scope_detail:str;access:str
+    starters:list[str];base_version:int|None;record_count:int;provider:str;provider_ready:bool;mode:Literal['LIVE','SIMULATED']
+class RMCopilotTurn(BaseModel):
+    id:str;question:str;answer:str;points:list[RMCopilotPoint];refs:list[RMCopilotRef];suggestions:list[str];action:RMCopilotAction|None
+    mode:Literal['LIVE','SIMULATED'];model:str;prompt_version:str;latency_ms:int;created_at:str;scope_label:str
 
 class RMImportRequest(StrictRM):
     csv_text:str=Field(min_length=10,max_length=10000)

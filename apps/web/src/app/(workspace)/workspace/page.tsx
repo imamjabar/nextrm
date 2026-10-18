@@ -3,6 +3,7 @@ import Link from 'next/link';
 import {MessageSquare, ArrowUpRight, MapPin, Activity, Clock, CheckCircle2, Users} from 'lucide-react';
 import {PageTitle, Status} from '@/components/ui/Workspace';
 import {useRM, RequestState, SignalRows, PersonName, Mode, JourneyLink} from '@/components/rm/shared';
+import {AssistantDock, AssistantPanel} from '@/components/rm/AssistantPanel';
 import type {RMHome, RMPulse} from '@/lib/rm.generated';
 
 export default function Workspace() {
@@ -10,7 +11,7 @@ export default function Workspace() {
   const pulse = useRM<RMPulse>('/v1/rm/pulse', 4000);
   const shortlist = (q.data?.prospect_preview || []).filter(p => ['READY_FOR_DISCUSSION', 'REVIEW_FIRST', 'REVIEW'].includes(p.priority_tier));
   const overdue = (pulse.data?.followups || []).filter(t => t.due_at && new Date(t.due_at).getTime() < Date.now());
-  return <><Mode provider={q.data?.provider}/><PageTitle title="Today’s relationship briefing." description="Your relationship desk: customer needs, promising conversations and the follow-through they deserve." action={<Link className="button button-primary" href="/retention"><Users size={17}/> Review customer needs</Link>}/>
+  return <AssistantDock label="Ask copilot" panel={(close, focus) => <AssistantPanel surface="RM" subject="your book" onClose={close} autoFocus={focus}/>}><Mode provider={q.data?.provider}/><PageTitle title="Today’s relationship briefing." description="Your relationship desk: customer needs, promising conversations and the follow-through they deserve." action={<Link className="button button-primary" href="/retention"><Users size={17}/> Review customer needs</Link>}/>
     <RequestState error={q.error} data={q.data} retry={q.refresh}/>
     {q.data && <>
       <div className="desk-summary"><span><CheckCircle2 size={16}/> Assigned to you</span><p>{q.data.customers} customer relationships · {q.data.prospects} supplied prospects · {q.data.open_followups} open follow-ups</p><Link className="text-link" href="/pulse">Relationship pulse <ArrowUpRight size={14}/></Link></div>
@@ -21,5 +22,5 @@ export default function Workspace() {
       <section className="desk-followthrough"><div className="section-title"><div><span className="eyebrow">03 / Follow-through</span><h2>{overdue.length ? 'Bring overdue work back into focus.' : 'Keep your promises in view.'}</h2></div><Link className="text-link" href="/follow-ups"><Clock size={16}/> Open follow-ups</Link></div>{pulse.error ? <RequestState error={pulse.error} data={pulse.data} retry={pulse.refresh}/> : !pulse.data ? <p className="section-context">Checking your follow-up records…</p> : pulse.data.followups.length ? (overdue.length ? overdue : pulse.data.followups).slice(0,3).map(j => <JourneyLink key={j.id} journey={j}/>) : <p className="section-context">Review a customer or prospect need, then prepare an RM follow-up. Notes and due dates stay attached to the source.</p>}</section>
       <section className="rm-workflow-note"><MessageSquare size={20}/><div><h3>Help → Evidence → Review → Prepare</h3><p>The customer stays in control. The RM gets the source and a useful next step.</p></div><Link href="/follow-ups" className="text-link">Open my follow-up plan <ArrowUpRight size={16}/></Link></section>
     </>}
-  </>;
+  </AssistantDock>;
 }

@@ -41,7 +41,7 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}, c
   const res = await fetch(`/api${endpoint}`, { ...options, headers });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
-    throw new Error(typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail || `API request failed (${res.status})`));
+    throw Object.assign(new Error(typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail || `API request failed (${res.status})`)), {status: res.status});
   }
   const data = await res.json() as T;
   if (method !== 'GET') { clearApiCache(); listeners.forEach(fn => fn()); }

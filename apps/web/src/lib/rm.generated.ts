@@ -196,6 +196,70 @@ export interface RMConversation {
   provider_ready: boolean;
   older_cursor?: string | null;
 }
+export interface RMCopilotAction {
+  kind: string;
+  label: string;
+  available: boolean;
+  reason?: string | null;
+  text?: string | null;
+  record_type?: string | null;
+  record_id?: string | null;
+  href?: string | null;
+}
+export interface RMCopilotContext {
+  surface: "RM" | "QUALITY";
+  scope: "PARTY" | "BOOK" | "QUALITY";
+  scope_label: string;
+  scope_detail: string;
+  access: string;
+  starters: Array<string>;
+  base_version: number | null;
+  record_count: number;
+  provider: string;
+  provider_ready: boolean;
+  mode: "LIVE" | "SIMULATED";
+}
+export interface RMCopilotHistoryItem {
+  question: string;
+  answer?: string;
+}
+export interface RMCopilotPoint {
+  text: string;
+  evidence: string;
+  evidence_label: string;
+  refs: Array<string>;
+}
+export interface RMCopilotRef {
+  id: string;
+  label: string;
+  evidence: string;
+  record_type: string;
+  record_id?: string | null;
+  href?: string | null;
+  source?: RMSource | null;
+}
+export interface RMCopilotRequest {
+  message: string;
+  party_id?: string | null;
+  run_id?: string | null;
+  base_version?: number | null;
+  history?: Array<RMCopilotHistoryItem>;
+}
+export interface RMCopilotTurn {
+  id: string;
+  question: string;
+  answer: string;
+  points: Array<RMCopilotPoint>;
+  refs: Array<RMCopilotRef>;
+  suggestions: Array<string>;
+  action: RMCopilotAction | null;
+  mode: "LIVE" | "SIMULATED";
+  model: string;
+  prompt_version: string;
+  latency_ms: number;
+  created_at: string;
+  scope_label: string;
+}
 export interface RMCoverageUpdate {
   base_version: number;
   request_key: string;
@@ -674,6 +738,7 @@ export interface RMQuality {
   health: Array<RMHealthItem>;
   content_access: boolean;
   method_note: string;
+  metrics_run_id?: string | null;
 }
 export interface RMRMContact {
   name: string;
