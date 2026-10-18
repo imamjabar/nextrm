@@ -65,5 +65,5 @@ function BankingPhone({personId}:{personId:string}){
 }
 export default function CustomerChat(){
   const q=useRM<RMParties>('/v1/rm/parties');const person=q.data?.parties.find(p=>p.kind==='PERSON'&&p.relationship==='EXISTING_CUSTOMER');
-  return <div className="mvp-customer-stage"><RequestState data={q.data} error={q.error} retry={q.refresh}/>{person?<BankingPhone key={person.id} personId={person.id}/>:q.data?<Notice>No customer relationship is assigned to this account.</Notice>:null}<p className="mvp-demo-caption">MVP demo · Sample bank data · Each answer shows whether live Gemini or a simulation wrote it<br/>Relevant conversations and permitted app activity can inform your RM.</p></div>;
+  return <div className="mvp-customer-stage"><RequestState data={q.data} error={q.error} retry={q.refresh}/>{person?<BankingPhone key={person.id} personId={person.id}/>:q.data?<Notice>No customer relationship is assigned to this account.</Notice>:null}</div>;
 }
