@@ -17,7 +17,7 @@ export function clearApiCache(prefix?: string) {
   activeReads.clear();
   for (const key of Array.from(apiCache.keys())) if (!prefix || key.includes(prefix)) apiCache.delete(key);
 }
-export async function fetchApi<T>(endpoint: string, options: RequestInit = {}, ctx: UserContext = activeContext): Promise<T> {
+export async function fetchApi<T>(endpoint: string, options: RequestInit & {readOnly?: boolean} = {}, ctx: UserContext = activeContext): Promise<T> {
   if (!endpoint.startsWith('/v1/') || endpoint.includes('..')) throw new Error('Unsupported API path');
   const method = (options.method || 'GET').toUpperCase();
   const key = `${method}:${endpoint}:${ctx.userId}:${ctx.tenantId}`;
@@ -44,7 +44,8 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}, c
     throw Object.assign(new Error(typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail || `API request failed (${res.status})`)), {status: res.status});
   }
   const data = await res.json() as T;
-  if (method !== 'GET') { clearApiCache(); listeners.forEach(fn => fn()); }
+  if (method !== 'GET' && !options.readOnly) { clearApiCache(); listeners.forEach(fn => fn()); }
+  else if (method !== 'GET') return data;
   else if (epoch !== mutationEpoch) throw new Error('The case or session changed while loading. Reload the current version.');
   else if (cacheable) {
     if (apiCache.size >= 100) apiCache.delete(apiCache.keys().next().value!);

@@ -92,7 +92,7 @@ export function AssistantPanel({surface,partyId,runId,baseVersion,subject,onActi
     const id=crypto.randomUUID();setDraft('');setBusy(true);setLog(l=>[...l,{id,question}]);
     const history=log.filter(x=>x.turn).slice(-4).map(x=>({question:x.question,answer:x.turn!.answer}));
     try{
-      const turn=await fetchApi<RMCopilotTurn>(turnsPath,{method:'POST',body:JSON.stringify({message:question,party_id:partyId||null,run_id:runId||null,base_version:baseVersion??null,history})});
+      const turn=await fetchApi<RMCopilotTurn>(turnsPath,{method:'POST',readOnly:true,body:JSON.stringify({message:question,party_id:partyId||null,run_id:runId||null,base_version:baseVersion??null,history})});
       setLog(l=>l.map(x=>x.id===id?{...x,turn}:x));
     }catch(e:any){
       setLog(l=>l.map(x=>x.id===id?{...x,failure:{status:Number(e?.status)||0,message:String(e?.message||'')}}:x));
